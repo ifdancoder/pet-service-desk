@@ -16,7 +16,7 @@ test('the database seeder produces a coherent demo dataset', function () {
         ->and(Team::count())->toBe(6)
         ->and(User::count())->toBe(16)
         ->and(TicketCategory::count())->toBe(5)
-        ->and(SlaPolicy::count())->toBe(20)
+        ->and(SlaPolicy::count())->toBe(24)
         ->and(Tag::count())->toBe(8)
         ->and(Ticket::count())->toBe(40);
 
