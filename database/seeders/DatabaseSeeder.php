@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\TicketPriority;
 use App\Enums\TicketStatus;
+use App\Enums\UserRole;
 use App\Models\Department;
 use App\Models\SlaPolicy;
 use App\Models\Tag;
@@ -14,6 +15,7 @@ use App\Models\TicketCategory;
 use App\Models\TicketComment;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -22,10 +24,22 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
+        // WithoutModelEvents (above) wraps this entire run() — including the
+        // nested seeder call below — in Model::withoutEvents(). spatie/laravel-permission
+        // relies on the Eloquent `saved`/`deleted` events to invalidate its permission
+        // cache, so with events suppressed, roles created here can never see the
+        // permissions RolePermissionSeeder just created. Restore real events for
+        // just this call, then resume suppressing them for the bulk factory calls below.
+        $suppressedDispatcher = Model::getEventDispatcher();
+        Model::setEventDispatcher(app('events'));
+        $this->call(RolePermissionSeeder::class);
+        Model::setEventDispatcher($suppressedDispatcher);
+
         $testUser = User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+        $testUser->assignRole(UserRole::Administrator->value);
 
         $departments = Department::factory()
             ->count(3)
@@ -41,9 +55,24 @@ class DatabaseSeeder extends Seeder
                 $agent->teams()->attach($department->teams->random(random_int(1, 2))->pluck('id'));
             });
 
+        $agents->slice(0, 10)->each(
+            fn (User $agent) => $agent->assignRole(UserRole::SupportAgent->value)
+        );
+        $agents->slice(10, 3)->each(
+            fn (User $agent) => $agent->assignRole([UserRole::SupportAgent->value, UserRole::TeamLead->value])
+        );
+        $agents->slice(13, 2)->each(
+            fn (User $agent) => $agent->assignRole([UserRole::SupportAgent->value, UserRole::SupportManager->value])
+        );
+
         $testUser->update(['department_id' => $departments->first()->id]);
 
         $agents = $agents->push($testUser);
+
+        $customers = User::factory()
+            ->count(20)
+            ->create()
+            ->each(fn (User $customer) => $customer->assignRole(UserRole::Customer->value));
 
         $categories = TicketCategory::factory()
             ->count(5)
@@ -92,13 +121,13 @@ class DatabaseSeeder extends Seeder
 
         Ticket::factory()
             ->count(40)
-            ->state(function () use ($agents, $categories, $departments) {
+            ->state(function () use ($agents, $customers, $categories, $departments) {
                 $department = $departments->random();
 
                 return [
                     'status' => fake()->randomElement(TicketStatus::cases()),
                     'priority' => fake()->randomElement(TicketPriority::cases()),
-                    'requester_id' => $agents->random()->id,
+                    'requester_id' => $customers->random()->id,
                     'assignee_id' => fake()->boolean(70) ? $agents->random()->id : null,
                     'category_id' => $categories->random()->id,
                     'department_id' => $department->id,
