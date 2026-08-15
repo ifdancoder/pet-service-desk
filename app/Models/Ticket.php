@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 
 #[Fillable([
     'requester_id',
@@ -82,6 +83,11 @@ class Ticket extends Model
     public function watchers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'ticket_watchers');
+    }
+
+    public function tags(): MorphToMany
+    {
+        return $this->morphToMany(Tag::class, 'taggable');
     }
 
     #[Scope]
