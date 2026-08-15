@@ -27,4 +27,9 @@ class TicketCategory extends Model
     {
         return $this->hasMany(Ticket::class, 'category_id');
     }
+
+    public function slaPolicies(): HasMany
+    {
+        return $this->hasMany(SlaPolicy::class, 'category_id');
+    }
 }
