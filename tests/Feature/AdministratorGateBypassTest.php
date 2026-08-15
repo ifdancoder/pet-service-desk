@@ -35,3 +35,11 @@ test('an administrator bypasses a concretely defined, denying ability', function
 
     expect(Gate::forUser($user)->allows('some-concrete-ability'))->toBeTrue();
 });
+
+test('a non-administrator still passes a concretely defined, allowing ability', function () {
+    Gate::define('some-concrete-ability-that-allows', fn () => true);
+
+    $user = User::factory()->create();
+
+    expect(Gate::forUser($user)->allows('some-concrete-ability-that-allows'))->toBeTrue();
+});
