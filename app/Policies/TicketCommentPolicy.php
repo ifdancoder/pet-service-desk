@@ -10,7 +10,7 @@ class TicketCommentPolicy
 {
     public function create(User $user, Ticket $ticket): bool
     {
-        return $user->can('comment.create');
+        return $user->can('comment.create') && $user->can('view', $ticket);
     }
 
     public function delete(User $user, TicketComment $comment): bool
