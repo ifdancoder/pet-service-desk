@@ -14,7 +14,7 @@ test('the role/permission seeder creates all roles and permissions with the righ
 
     $customer = Role::findByName(UserRole::Customer->value);
     expect($customer->permissions->pluck('name')->sort()->values()->all())
-        ->toBe(['comment.create', 'comment.delete-own', 'ticket.create', 'ticket.view-own']);
+        ->toBe(['comment.create', 'comment.delete-own', 'ticket.create', 'ticket.update-own', 'ticket.view-own']);
 
     $teamLead = Role::findByName(UserRole::TeamLead->value);
     expect($teamLead->permissions->pluck('name')->sort()->values()->all())

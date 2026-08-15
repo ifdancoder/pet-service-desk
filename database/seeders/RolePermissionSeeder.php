@@ -38,6 +38,7 @@ class RolePermissionSeeder extends Seeder
         'customer' => [
             'ticket.view-own',
             'ticket.create',
+            'ticket.update-own',
             'comment.create',
             'comment.delete-own',
         ],
