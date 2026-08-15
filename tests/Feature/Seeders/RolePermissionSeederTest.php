@@ -20,6 +20,33 @@ test('the role/permission seeder creates all roles and permissions with the righ
     expect($teamLead->permissions->pluck('name')->sort()->values()->all())
         ->toBe(['comment.delete-any', 'ticket.assign']);
 
+    $supportAgent = Role::findByName(UserRole::SupportAgent->value);
+    expect($supportAgent->permissions->pluck('name')->sort()->values()->all())
+        ->toBe([
+            'comment.create',
+            'comment.delete-own',
+            'ticket.change-priority',
+            'ticket.close',
+            'ticket.create',
+            'ticket.reopen',
+            'ticket.view-own',
+            'ticket.view-team',
+        ]);
+
+    $supportManager = Role::findByName(UserRole::SupportManager->value);
+    expect($supportManager->permissions->pluck('name')->sort()->values()->all())
+        ->toBe([
+            'comment.create',
+            'comment.delete-any',
+            'sla.manage',
+            'ticket.assign',
+            'ticket.change-priority',
+            'ticket.close',
+            'ticket.delete',
+            'ticket.reopen',
+            'ticket.view-all',
+        ]);
+
     $administrator = Role::findByName(UserRole::Administrator->value);
     expect($administrator->permissions()->count())->toBe(16);
 });
