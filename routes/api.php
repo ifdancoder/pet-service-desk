@@ -20,6 +20,6 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::apiResource('ticket-categories', TicketCategoryController::class);
         Route::apiResource('tags', TagController::class);
         Route::apiResource('sla-policies', SlaPolicyController::class);
-        Route::apiResource('tickets', TicketController::class)->only(['index', 'show']);
+        Route::apiResource('tickets', TicketController::class);
     });
 });
