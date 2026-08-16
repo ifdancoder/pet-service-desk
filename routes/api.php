@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\SlaPolicyController;
 use App\Http\Controllers\Api\V1\TagController;
 use App\Http\Controllers\Api\V1\TeamController;
 use App\Http\Controllers\Api\V1\TicketCategoryController;
+use App\Http\Controllers\Api\V1\TicketController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function () {
@@ -19,5 +20,6 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::apiResource('ticket-categories', TicketCategoryController::class);
         Route::apiResource('tags', TagController::class);
         Route::apiResource('sla-policies', SlaPolicyController::class);
+        Route::apiResource('tickets', TicketController::class)->only(['index', 'show']);
     });
 });
