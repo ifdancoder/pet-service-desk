@@ -34,6 +34,7 @@ class TicketAttachmentController extends Controller
     public function destroy(Ticket $ticket, TicketAttachment $attachment, TicketAttachmentService $service): Response
     {
         $this->authorize('update', $ticket);
+        abort_unless($attachment->ticket_id === $ticket->id, 404);
 
         $service->delete($attachment);
 
@@ -43,6 +44,7 @@ class TicketAttachmentController extends Controller
     public function download(Ticket $ticket, TicketAttachment $attachment): RedirectResponse
     {
         $this->authorize('view', $ticket);
+        abort_unless($attachment->ticket_id === $ticket->id, 404);
 
         $url = Storage::disk($attachment->disk)->temporaryUrl(
             $attachment->path,

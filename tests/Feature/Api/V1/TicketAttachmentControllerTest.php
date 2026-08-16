@@ -108,3 +108,45 @@ test('downloading an attachment redirects to a temporary URL', function () {
     $this->get("/api/v1/tickets/{$ownTicket->id}/attachments/{$attachment->id}/download")
         ->assertRedirect();
 });
+
+test('deleting an attachment that belongs to a different ticket returns 404', function () {
+    $user = User::factory()->create();
+    Permission::findOrCreate('ticket.update-own');
+    $user->givePermissionTo('ticket.update-own');
+    Sanctum::actingAs($user, ['*']);
+
+    $ownOpenTicket = Ticket::factory()->create([
+        'requester_id' => $user->id,
+        'status' => TicketStatus::Open,
+    ]);
+    $otherTicket = Ticket::factory()->create();
+    Storage::disk('s3')->put('tickets/2/other.png', 'contents');
+    $attachment = TicketAttachment::factory()->for($otherTicket)->create([
+        'disk' => 's3',
+        'path' => 'tickets/2/other.png',
+    ]);
+
+    $this->deleteJson("/api/v1/tickets/{$ownOpenTicket->id}/attachments/{$attachment->id}")
+        ->assertNotFound();
+
+    Storage::disk('s3')->assertExists('tickets/2/other.png');
+    expect(TicketAttachment::find($attachment->id))->not->toBeNull();
+});
+
+test('downloading an attachment that belongs to a different ticket returns 404', function () {
+    $user = User::factory()->create();
+    Permission::findOrCreate('ticket.view-own');
+    $user->givePermissionTo('ticket.view-own');
+    Sanctum::actingAs($user, ['*']);
+
+    $ownTicket = Ticket::factory()->create(['requester_id' => $user->id]);
+    $otherTicket = Ticket::factory()->create();
+    Storage::disk('s3')->put('tickets/2/report.pdf', 'contents');
+    $attachment = TicketAttachment::factory()->for($otherTicket)->create([
+        'disk' => 's3',
+        'path' => 'tickets/2/report.pdf',
+    ]);
+
+    $this->get("/api/v1/tickets/{$ownTicket->id}/attachments/{$attachment->id}/download")
+        ->assertNotFound();
+});
