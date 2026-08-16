@@ -101,4 +101,34 @@ class Ticket extends Model
     {
         $query->where('status', TicketStatus::Closed);
     }
+
+    #[Scope]
+    protected function visibleTo(Builder $query, User $user): void
+    {
+        if ($user->can('ticket.view-all')) {
+            return;
+        }
+
+        $canViewTeam = $user->can('ticket.view-team');
+        $canViewOwn = $user->can('ticket.view-own');
+
+        if (! $canViewTeam && ! $canViewOwn) {
+            // An empty nested where-group compiles away entirely (Laravel drops
+            // it from the SQL), which would otherwise match every ticket. Force
+            // zero results when the user holds none of the view permissions.
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->where(function (Builder $query) use ($canViewTeam, $canViewOwn, $user) {
+            if ($canViewTeam) {
+                $query->orWhereIn('team_id', $user->teams->pluck('id'));
+            }
+
+            if ($canViewOwn) {
+                $query->orWhere('requester_id', $user->id);
+            }
+        });
+    }
 }
