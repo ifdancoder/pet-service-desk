@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthTokenController;
 use App\Http\Controllers\Api\V1\DepartmentController;
+use App\Http\Controllers\Api\V1\TeamController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function () {
@@ -11,5 +12,6 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::delete('auth/tokens/current', [AuthTokenController::class, 'destroy'])->name('auth.tokens.destroy');
 
         Route::apiResource('departments', DepartmentController::class);
+        Route::apiResource('teams', TeamController::class);
     });
 });
