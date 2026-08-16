@@ -22,6 +22,13 @@ test('assign requires the permission and an open ticket', function () {
 
     $this->postJson("/api/v1/tickets/{$closed->id}/assign", ['assignee_id' => $assignee->id])
         ->assertForbidden();
+
+    $userWithoutPermission = User::factory()->create();
+    Sanctum::actingAs($userWithoutPermission, ['*']);
+    $anotherOpen = Ticket::factory()->create(['status' => TicketStatus::Open]);
+
+    $this->postJson("/api/v1/tickets/{$anotherOpen->id}/assign", ['assignee_id' => $assignee->id])
+        ->assertForbidden();
 });
 
 test('close requires the permission and an open ticket', function () {
@@ -38,6 +45,12 @@ test('close requires the permission and an open ticket', function () {
         ->assertJsonPath('data.status', 'closed');
 
     $this->postJson("/api/v1/tickets/{$closed->id}/close")->assertForbidden();
+
+    $userWithoutPermission = User::factory()->create();
+    Sanctum::actingAs($userWithoutPermission, ['*']);
+    $anotherOpen = Ticket::factory()->create(['status' => TicketStatus::Open]);
+
+    $this->postJson("/api/v1/tickets/{$anotherOpen->id}/close")->assertForbidden();
 });
 
 test('reopen requires the permission and a closed ticket', function () {
@@ -54,6 +67,12 @@ test('reopen requires the permission and a closed ticket', function () {
         ->assertJsonPath('data.status', 'open');
 
     $this->postJson("/api/v1/tickets/{$open->id}/reopen")->assertForbidden();
+
+    $userWithoutPermission = User::factory()->create();
+    Sanctum::actingAs($userWithoutPermission, ['*']);
+    $anotherClosed = Ticket::factory()->create(['status' => TicketStatus::Closed]);
+
+    $this->postJson("/api/v1/tickets/{$anotherClosed->id}/reopen")->assertForbidden();
 });
 
 test('changePriority requires the permission and an open ticket', function () {
@@ -70,5 +89,12 @@ test('changePriority requires the permission and an open ticket', function () {
         ->assertJsonPath('data.priority', 'critical');
 
     $this->patchJson("/api/v1/tickets/{$closed->id}/priority", ['priority' => 'critical'])
+        ->assertForbidden();
+
+    $userWithoutPermission = User::factory()->create();
+    Sanctum::actingAs($userWithoutPermission, ['*']);
+    $anotherOpen = Ticket::factory()->create(['status' => TicketStatus::Open]);
+
+    $this->patchJson("/api/v1/tickets/{$anotherOpen->id}/priority", ['priority' => 'critical'])
         ->assertForbidden();
 });
