@@ -72,4 +72,14 @@ class TicketService
 
         return $ticket;
     }
+
+    public function attachWatcher(Ticket $ticket, User $watcher): void
+    {
+        $ticket->watchers()->syncWithoutDetaching($watcher);
+    }
+
+    public function detachWatcher(Ticket $ticket, User $watcher): void
+    {
+        $ticket->watchers()->detach($watcher);
+    }
 }

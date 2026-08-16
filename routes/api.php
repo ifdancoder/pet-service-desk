@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\TeamController;
 use App\Http\Controllers\Api\V1\TicketCategoryController;
 use App\Http\Controllers\Api\V1\TicketCommentController;
 use App\Http\Controllers\Api\V1\TicketController;
+use App\Http\Controllers\Api\V1\TicketWatcherController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function () {
@@ -27,5 +28,6 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::patch('tickets/{ticket}/priority', [TicketController::class, 'changePriority'])->name('tickets.priority');
         Route::apiResource('tickets', TicketController::class);
         Route::apiResource('tickets.comments', TicketCommentController::class)->only(['index', 'store', 'destroy']);
+        Route::apiResource('tickets.watchers', TicketWatcherController::class)->only(['index', 'store', 'destroy']);
     });
 });
