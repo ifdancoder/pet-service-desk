@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthTokenController;
 use App\Http\Controllers\Api\V1\DepartmentController;
+use App\Http\Controllers\Api\V1\SavedFilterController;
 use App\Http\Controllers\Api\V1\SlaPolicyController;
 use App\Http\Controllers\Api\V1\TagController;
 use App\Http\Controllers\Api\V1\TeamController;
@@ -23,6 +24,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::apiResource('ticket-categories', TicketCategoryController::class);
         Route::apiResource('tags', TagController::class);
         Route::apiResource('sla-policies', SlaPolicyController::class);
+        Route::apiResource('saved-filters', SavedFilterController::class);
         Route::post('tickets/{ticket}/assign', [TicketController::class, 'assign'])->name('tickets.assign');
         Route::post('tickets/{ticket}/close', [TicketController::class, 'close'])->name('tickets.close');
         Route::post('tickets/{ticket}/reopen', [TicketController::class, 'reopen'])->name('tickets.reopen');
