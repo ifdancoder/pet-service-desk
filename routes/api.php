@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\SlaPolicyController;
 use App\Http\Controllers\Api\V1\TagController;
 use App\Http\Controllers\Api\V1\TeamController;
+use App\Http\Controllers\Api\V1\TicketAttachmentController;
 use App\Http\Controllers\Api\V1\TicketCategoryController;
 use App\Http\Controllers\Api\V1\TicketCommentController;
 use App\Http\Controllers\Api\V1\TicketController;
@@ -29,5 +30,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::apiResource('tickets', TicketController::class);
         Route::apiResource('tickets.comments', TicketCommentController::class)->only(['index', 'store', 'destroy']);
         Route::apiResource('tickets.watchers', TicketWatcherController::class)->only(['index', 'store', 'destroy']);
+        Route::get('tickets/{ticket}/attachments/{attachment}/download', [TicketAttachmentController::class, 'download'])
+            ->name('tickets.attachments.download');
+        Route::apiResource('tickets.attachments', TicketAttachmentController::class)->only(['index', 'store', 'destroy']);
     });
 });
