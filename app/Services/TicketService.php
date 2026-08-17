@@ -5,6 +5,7 @@ namespace App\Services;
 use App\DataTransferObjects\TicketData;
 use App\Enums\TicketPriority;
 use App\Enums\TicketStatus;
+use App\Models\Tag;
 use App\Models\Ticket;
 use App\Models\User;
 
@@ -81,5 +82,13 @@ class TicketService
     public function detachWatcher(Ticket $ticket, User $watcher): void
     {
         $ticket->watchers()->detach($watcher);
+    }
+
+    public function syncTags(Ticket $ticket, array $tagSlugs): Ticket
+    {
+        $tagIds = Tag::query()->whereIn('slug', $tagSlugs)->pluck('id');
+        $ticket->tags()->sync($tagIds);
+
+        return $ticket->fresh();
     }
 }
