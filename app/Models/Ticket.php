@@ -90,6 +90,11 @@ class Ticket extends Model
         return $this->morphToMany(Tag::class, 'taggable');
     }
 
+    public function violations(): HasMany
+    {
+        return $this->hasMany(SlaViolation::class);
+    }
+
     #[Scope]
     protected function open(Builder $query): void
     {
