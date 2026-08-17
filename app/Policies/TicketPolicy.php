@@ -45,22 +45,30 @@ class TicketPolicy
 
     public function assign(User $user, Ticket $ticket): bool
     {
-        return $user->can('ticket.assign') && ! $ticket->status->isClosed();
+        return $user->can('ticket.assign')
+            && ! $ticket->status->isClosed()
+            && $this->view($user, $ticket);
     }
 
     public function changePriority(User $user, Ticket $ticket): bool
     {
-        return $user->can('ticket.change-priority') && ! $ticket->status->isClosed();
+        return $user->can('ticket.change-priority')
+            && ! $ticket->status->isClosed()
+            && $this->view($user, $ticket);
     }
 
     public function close(User $user, Ticket $ticket): bool
     {
-        return $user->can('ticket.close') && ! $ticket->status->isClosed();
+        return $user->can('ticket.close')
+            && ! $ticket->status->isClosed()
+            && $this->view($user, $ticket);
     }
 
     public function reopen(User $user, Ticket $ticket): bool
     {
-        return $user->can('ticket.reopen') && $ticket->status->isClosed();
+        return $user->can('ticket.reopen')
+            && $ticket->status->isClosed()
+            && $this->view($user, $ticket);
     }
 
     public function delete(User $user, Ticket $ticket): bool

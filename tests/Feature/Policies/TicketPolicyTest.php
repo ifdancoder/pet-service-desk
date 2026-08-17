@@ -99,52 +99,76 @@ test("update is only allowed for the open ticket's own requester with the permis
         ->and($user->can('update', $othersTicket))->toBeFalse();
 });
 
-test('assign requires the permission and an open ticket', function () {
+test('assign requires the permission, an open ticket, and view access', function () {
     $user = User::factory()->create();
     Permission::findOrCreate('ticket.assign');
-    $user->givePermissionTo('ticket.assign');
+    Permission::findOrCreate('ticket.view-all');
+    $user->givePermissionTo(['ticket.assign', 'ticket.view-all']);
 
     $open = Ticket::factory()->create(['status' => TicketStatus::Open]);
     $closed = Ticket::factory()->create(['status' => TicketStatus::Closed]);
 
     expect($user->can('assign', $open))->toBeTrue()
         ->and($user->can('assign', $closed))->toBeFalse();
+
+    $userWithoutView = User::factory()->create();
+    $userWithoutView->givePermissionTo('ticket.assign');
+
+    expect($userWithoutView->can('assign', $open))->toBeFalse();
 });
 
-test('changePriority requires the permission and an open ticket', function () {
+test('changePriority requires the permission, an open ticket, and view access', function () {
     $user = User::factory()->create();
     Permission::findOrCreate('ticket.change-priority');
-    $user->givePermissionTo('ticket.change-priority');
+    Permission::findOrCreate('ticket.view-all');
+    $user->givePermissionTo(['ticket.change-priority', 'ticket.view-all']);
 
     $open = Ticket::factory()->create(['status' => TicketStatus::Open]);
     $closed = Ticket::factory()->create(['status' => TicketStatus::Closed]);
 
     expect($user->can('changePriority', $open))->toBeTrue()
         ->and($user->can('changePriority', $closed))->toBeFalse();
+
+    $userWithoutView = User::factory()->create();
+    $userWithoutView->givePermissionTo('ticket.change-priority');
+
+    expect($userWithoutView->can('changePriority', $open))->toBeFalse();
 });
 
-test('close requires the permission and an open ticket', function () {
+test('close requires the permission, an open ticket, and view access', function () {
     $user = User::factory()->create();
     Permission::findOrCreate('ticket.close');
-    $user->givePermissionTo('ticket.close');
+    Permission::findOrCreate('ticket.view-all');
+    $user->givePermissionTo(['ticket.close', 'ticket.view-all']);
 
     $open = Ticket::factory()->create(['status' => TicketStatus::Open]);
     $closed = Ticket::factory()->create(['status' => TicketStatus::Closed]);
 
     expect($user->can('close', $open))->toBeTrue()
         ->and($user->can('close', $closed))->toBeFalse();
+
+    $userWithoutView = User::factory()->create();
+    $userWithoutView->givePermissionTo('ticket.close');
+
+    expect($userWithoutView->can('close', $open))->toBeFalse();
 });
 
-test('reopen requires the permission and a closed ticket', function () {
+test('reopen requires the permission, a closed ticket, and view access', function () {
     $user = User::factory()->create();
     Permission::findOrCreate('ticket.reopen');
-    $user->givePermissionTo('ticket.reopen');
+    Permission::findOrCreate('ticket.view-all');
+    $user->givePermissionTo(['ticket.reopen', 'ticket.view-all']);
 
     $open = Ticket::factory()->create(['status' => TicketStatus::Open]);
     $closed = Ticket::factory()->create(['status' => TicketStatus::Closed]);
 
     expect($user->can('reopen', $closed))->toBeTrue()
         ->and($user->can('reopen', $open))->toBeFalse();
+
+    $userWithoutView = User::factory()->create();
+    $userWithoutView->givePermissionTo('ticket.reopen');
+
+    expect($userWithoutView->can('reopen', $closed))->toBeFalse();
 });
 
 test('delete requires the ticket.delete permission', function () {

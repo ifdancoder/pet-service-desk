@@ -10,7 +10,8 @@ test('assign requires the permission and an open ticket', function () {
     $user = User::factory()->create();
     $assignee = User::factory()->create();
     Permission::findOrCreate('ticket.assign');
-    $user->givePermissionTo('ticket.assign');
+    Permission::findOrCreate('ticket.view-all');
+    $user->givePermissionTo(['ticket.assign', 'ticket.view-all']);
     Sanctum::actingAs($user, ['*']);
 
     $open = Ticket::factory()->create(['status' => TicketStatus::Open]);
@@ -31,10 +32,24 @@ test('assign requires the permission and an open ticket', function () {
         ->assertForbidden();
 });
 
+test('assign requires view access even with the ticket.assign permission', function () {
+    $teamLead = User::factory()->create();
+    Permission::findOrCreate('ticket.assign');
+    $teamLead->givePermissionTo('ticket.assign');
+    Sanctum::actingAs($teamLead, ['*']);
+
+    $assignee = User::factory()->create();
+    $ticket = Ticket::factory()->create(['status' => TicketStatus::Open]);
+
+    $this->postJson("/api/v1/tickets/{$ticket->id}/assign", ['assignee_id' => $assignee->id])
+        ->assertForbidden();
+});
+
 test('close requires the permission and an open ticket', function () {
     $user = User::factory()->create();
     Permission::findOrCreate('ticket.close');
-    $user->givePermissionTo('ticket.close');
+    Permission::findOrCreate('ticket.view-all');
+    $user->givePermissionTo(['ticket.close', 'ticket.view-all']);
     Sanctum::actingAs($user, ['*']);
 
     $open = Ticket::factory()->create(['status' => TicketStatus::Open]);
@@ -53,10 +68,22 @@ test('close requires the permission and an open ticket', function () {
     $this->postJson("/api/v1/tickets/{$anotherOpen->id}/close")->assertForbidden();
 });
 
+test('close requires view access even with the ticket.close permission', function () {
+    $user = User::factory()->create();
+    Permission::findOrCreate('ticket.close');
+    $user->givePermissionTo('ticket.close');
+    Sanctum::actingAs($user, ['*']);
+
+    $ticket = Ticket::factory()->create(['status' => TicketStatus::Open]);
+
+    $this->postJson("/api/v1/tickets/{$ticket->id}/close")->assertForbidden();
+});
+
 test('reopen requires the permission and a closed ticket', function () {
     $user = User::factory()->create();
     Permission::findOrCreate('ticket.reopen');
-    $user->givePermissionTo('ticket.reopen');
+    Permission::findOrCreate('ticket.view-all');
+    $user->givePermissionTo(['ticket.reopen', 'ticket.view-all']);
     Sanctum::actingAs($user, ['*']);
 
     $open = Ticket::factory()->create(['status' => TicketStatus::Open]);
@@ -75,10 +102,22 @@ test('reopen requires the permission and a closed ticket', function () {
     $this->postJson("/api/v1/tickets/{$anotherClosed->id}/reopen")->assertForbidden();
 });
 
+test('reopen requires view access even with the ticket.reopen permission', function () {
+    $user = User::factory()->create();
+    Permission::findOrCreate('ticket.reopen');
+    $user->givePermissionTo('ticket.reopen');
+    Sanctum::actingAs($user, ['*']);
+
+    $ticket = Ticket::factory()->create(['status' => TicketStatus::Closed]);
+
+    $this->postJson("/api/v1/tickets/{$ticket->id}/reopen")->assertForbidden();
+});
+
 test('changePriority requires the permission and an open ticket', function () {
     $user = User::factory()->create();
     Permission::findOrCreate('ticket.change-priority');
-    $user->givePermissionTo('ticket.change-priority');
+    Permission::findOrCreate('ticket.view-all');
+    $user->givePermissionTo(['ticket.change-priority', 'ticket.view-all']);
     Sanctum::actingAs($user, ['*']);
 
     $open = Ticket::factory()->create(['status' => TicketStatus::Open]);
@@ -96,5 +135,17 @@ test('changePriority requires the permission and an open ticket', function () {
     $anotherOpen = Ticket::factory()->create(['status' => TicketStatus::Open]);
 
     $this->patchJson("/api/v1/tickets/{$anotherOpen->id}/priority", ['priority' => 'critical'])
+        ->assertForbidden();
+});
+
+test('changePriority requires view access even with the ticket.change-priority permission', function () {
+    $user = User::factory()->create();
+    Permission::findOrCreate('ticket.change-priority');
+    $user->givePermissionTo('ticket.change-priority');
+    Sanctum::actingAs($user, ['*']);
+
+    $ticket = Ticket::factory()->create(['status' => TicketStatus::Open]);
+
+    $this->patchJson("/api/v1/tickets/{$ticket->id}/priority", ['priority' => 'critical'])
         ->assertForbidden();
 });
