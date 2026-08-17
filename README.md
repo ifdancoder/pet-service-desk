@@ -56,7 +56,7 @@ Authenticate with email/password to receive a Sanctum token, then send it as a b
 curl -X POST http://localhost:8000/api/v1/auth/tokens \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
-  -d '{"email": "customer@example.com", "password": "password"}'
+  -d '{"email": "test@example.com", "password": "password"}'
 # => { "data": { "token": "1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" } }
 
 curl http://localhost:8000/api/v1/tickets \
