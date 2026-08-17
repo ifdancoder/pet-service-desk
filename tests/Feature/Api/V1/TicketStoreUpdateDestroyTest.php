@@ -1,7 +1,9 @@
 <?php
 
+use App\Enums\TicketPriority;
 use App\Enums\TicketStatus;
 use App\Models\Department;
+use App\Models\Team;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\User;
@@ -69,14 +71,16 @@ test("update is only allowed for the open ticket's own requester with the permis
     ]);
     $othersTicket = Ticket::factory()->create(['status' => TicketStatus::Open]);
 
+    // priority/team_id/assignee_id deliberately omitted: this user only holds
+    // ticket.update-own (a customer-shaped grant), not ticket.change-priority
+    // or ticket.assign, so those fields must stay out of the payload — see
+    // TicketStoreUpdateDestroyTest's C2 coverage below for the permission and
+    // field-preservation behavior itself.
     $payload = [
         'subject' => 'Updated subject',
         'description' => $ownTicket->description,
-        'priority' => $ownTicket->priority->value,
         'category_id' => $ownTicket->category_id,
         'department_id' => $ownTicket->department_id,
-        'team_id' => $ownTicket->team_id,
-        'assignee_id' => $ownTicket->assignee_id,
     ];
 
     $this->putJson("/api/v1/tickets/{$ownTicket->id}", $payload)
@@ -98,4 +102,158 @@ test('delete requires the ticket.delete permission', function () {
 
     $this->deleteJson("/api/v1/tickets/{$ticket->id}")->assertNoContent();
     expect(Ticket::find($ticket->id))->toBeNull();
+});
+
+test('creating a ticket with an assignee_id without ticket.assign is rejected', function () {
+    $user = User::factory()->create();
+    Permission::findOrCreate('ticket.create');
+    $user->givePermissionTo('ticket.create');
+    Sanctum::actingAs($user, ['*']);
+
+    $category = TicketCategory::factory()->create();
+    $department = Department::factory()->create();
+    $assignee = User::factory()->create();
+
+    $this->postJson('/api/v1/tickets', [
+        'subject' => 'Subject',
+        'description' => 'Description',
+        'priority' => 'normal',
+        'category_id' => $category->id,
+        'department_id' => $department->id,
+        'team_id' => null,
+        'assignee_id' => $assignee->id,
+    ])->assertUnprocessable()->assertJsonValidationErrors('assignee_id');
+});
+
+test('creating a ticket with a team_id and assignee_id succeeds when the user holds ticket.assign', function () {
+    $user = User::factory()->create();
+    Permission::findOrCreate('ticket.create');
+    Permission::findOrCreate('ticket.assign');
+    $user->givePermissionTo(['ticket.create', 'ticket.assign']);
+    Sanctum::actingAs($user, ['*']);
+
+    $category = TicketCategory::factory()->create();
+    $department = Department::factory()->create();
+    $team = Team::factory()->create();
+    $assignee = User::factory()->create();
+
+    $response = $this->postJson('/api/v1/tickets', [
+        'subject' => 'Subject',
+        'description' => 'Description',
+        'priority' => 'normal',
+        'category_id' => $category->id,
+        'department_id' => $department->id,
+        'team_id' => $team->id,
+        'assignee_id' => $assignee->id,
+    ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('data.team_id', $team->id)
+        ->assertJsonPath('data.assignee_id', $assignee->id);
+});
+
+test('updating a ticket with a team_id without ticket.assign is rejected', function () {
+    $user = User::factory()->create();
+    Permission::findOrCreate('ticket.update-own');
+    $user->givePermissionTo('ticket.update-own');
+    Sanctum::actingAs($user, ['*']);
+
+    $ownTicket = Ticket::factory()->create([
+        'requester_id' => $user->id,
+        'status' => TicketStatus::Open,
+    ]);
+    $team = Team::factory()->create();
+
+    $this->putJson("/api/v1/tickets/{$ownTicket->id}", [
+        'subject' => $ownTicket->subject,
+        'description' => $ownTicket->description,
+        'category_id' => $ownTicket->category_id,
+        'department_id' => $ownTicket->department_id,
+        'team_id' => $team->id,
+    ])->assertUnprocessable()->assertJsonValidationErrors('team_id');
+});
+
+test('updating a ticket with a priority without ticket.change-priority is rejected', function () {
+    $user = User::factory()->create();
+    Permission::findOrCreate('ticket.update-own');
+    $user->givePermissionTo('ticket.update-own');
+    Sanctum::actingAs($user, ['*']);
+
+    $ownTicket = Ticket::factory()->create([
+        'requester_id' => $user->id,
+        'status' => TicketStatus::Open,
+        'priority' => TicketPriority::Normal,
+    ]);
+
+    $this->putJson("/api/v1/tickets/{$ownTicket->id}", [
+        'subject' => $ownTicket->subject,
+        'description' => $ownTicket->description,
+        'category_id' => $ownTicket->category_id,
+        'department_id' => $ownTicket->department_id,
+        'priority' => 'critical',
+    ])->assertUnprocessable()->assertJsonValidationErrors('priority');
+});
+
+test('updating a ticket with team_id/assignee_id/priority succeeds when the user holds the relevant permissions', function () {
+    $user = User::factory()->create();
+    Permission::findOrCreate('ticket.update-own');
+    Permission::findOrCreate('ticket.assign');
+    Permission::findOrCreate('ticket.change-priority');
+    $user->givePermissionTo(['ticket.update-own', 'ticket.assign', 'ticket.change-priority']);
+    Sanctum::actingAs($user, ['*']);
+
+    $ownTicket = Ticket::factory()->create([
+        'requester_id' => $user->id,
+        'status' => TicketStatus::Open,
+        'priority' => TicketPriority::Normal,
+    ]);
+    $team = Team::factory()->create();
+    $assignee = User::factory()->create();
+
+    $response = $this->putJson("/api/v1/tickets/{$ownTicket->id}", [
+        'subject' => $ownTicket->subject,
+        'description' => $ownTicket->description,
+        'category_id' => $ownTicket->category_id,
+        'department_id' => $ownTicket->department_id,
+        'team_id' => $team->id,
+        'assignee_id' => $assignee->id,
+        'priority' => 'critical',
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('data.team_id', $team->id)
+        ->assertJsonPath('data.assignee_id', $assignee->id)
+        ->assertJsonPath('data.priority', 'critical');
+});
+
+test('updating only subject/description preserves the existing assignee_id and team_id', function () {
+    $user = User::factory()->create();
+    Permission::findOrCreate('ticket.update-own');
+    $user->givePermissionTo('ticket.update-own');
+    Sanctum::actingAs($user, ['*']);
+
+    $team = Team::factory()->create();
+    $assignee = User::factory()->create();
+    $ownTicket = Ticket::factory()->create([
+        'requester_id' => $user->id,
+        'status' => TicketStatus::Open,
+        'team_id' => $team->id,
+        'assignee_id' => $assignee->id,
+    ]);
+
+    $response = $this->putJson("/api/v1/tickets/{$ownTicket->id}", [
+        'subject' => 'Only the subject changed',
+        'description' => $ownTicket->description,
+        'category_id' => $ownTicket->category_id,
+        'department_id' => $ownTicket->department_id,
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('data.subject', 'Only the subject changed')
+        ->assertJsonPath('data.team_id', $team->id)
+        ->assertJsonPath('data.assignee_id', $assignee->id);
+
+    expect($ownTicket->fresh())
+        ->team_id->toBe($team->id)
+        ->assignee_id->toBe($assignee->id);
 });

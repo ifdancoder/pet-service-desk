@@ -22,8 +22,8 @@ class StoreTicketRequest extends FormRequest
             'priority' => ['required', Rule::enum(TicketPriority::class)],
             'category_id' => ['required', 'integer', Rule::exists('ticket_categories', 'id')->where('active', true)],
             'department_id' => ['required', 'integer', 'exists:departments,id'],
-            'team_id' => ['nullable', 'integer', 'exists:teams,id'],
-            'assignee_id' => ['nullable', 'integer', 'exists:users,id'],
+            'team_id' => ['nullable', 'integer', 'exists:teams,id', Rule::prohibitedIf(fn () => ! $this->user()->can('ticket.assign'))],
+            'assignee_id' => ['nullable', 'integer', 'exists:users,id', Rule::prohibitedIf(fn () => ! $this->user()->can('ticket.assign'))],
         ];
     }
 }

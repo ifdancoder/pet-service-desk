@@ -57,7 +57,7 @@ class TicketController extends Controller
 
     public function update(UpdateTicketRequest $request, Ticket $ticket, TicketService $service): TicketResource
     {
-        $ticket = $service->update($ticket, TicketData::fromRequest($request));
+        $ticket = $service->update($ticket, TicketData::fromRequest($request, $ticket));
 
         return new TicketResource($ticket);
     }
