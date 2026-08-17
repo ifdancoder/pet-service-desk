@@ -1,58 +1,86 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# SupportFlow
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+SupportFlow is a ServiceDesk/helpdesk REST API built with Laravel, demonstrating a Form Request → DTO → Service → Model architecture, Policy-based authorization (Spatie Permission + Laravel Policies), and Sanctum token authentication.
 
-## About Laravel
+The API covers tickets and their sub-resources (comments, attachments, watchers, tags), saved filters, and admin-facing catalog resources (departments, teams, ticket categories, tags, SLA policies).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Requirements
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- PHP `^8.3`
+- Composer
+- SQLite (the configured default — see `DB_CONNECTION` in `.env.example`; MySQL/Postgres also work if you point the `DB_*` variables at one)
+- MinIO or another S3-compatible object store, for ticket attachments
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Setup
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --seed
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+The seeder creates demo roles, permissions, a pool of customers, and sample role assignments — see `database/seeders` for details.
 
-## Contributing
+## MinIO setup (attachments)
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Ticket attachments are stored in an S3-compatible bucket. `.env.example` is already configured for a local MinIO instance:
 
-## Code of Conduct
+```
+AWS_ACCESS_KEY_ID=supportflow
+AWS_SECRET_ACCESS_KEY=supportflow-dev-secret
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=supportflow-attachments
+AWS_ENDPOINT=http://localhost:9000
+AWS_USE_PATH_STYLE_ENDPOINT=true
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Start a local MinIO server and create the bucket:
 
-## Security Vulnerabilities
+```bash
+docker run -d -p 9000:9000 -p 9001:9001 --name supportflow-minio \
+  -e MINIO_ROOT_USER=supportflow -e MINIO_ROOT_PASSWORD=supportflow-dev-secret \
+  minio/minio server /data --console-address ":9001"
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+mc alias set supportflow-local http://localhost:9000 supportflow supportflow-dev-secret
+mc mb supportflow-local/supportflow-attachments
+```
 
-## License
+The MinIO console is then available at `http://localhost:9001` (login with the root user/password above).
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Authentication
+
+Authenticate with email/password to receive a Sanctum token, then send it as a bearer token on subsequent requests:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/tokens \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"email": "customer@example.com", "password": "password"}'
+# => { "data": { "token": "1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" } }
+
+curl http://localhost:8000/api/v1/tickets \
+  -H "Authorization: Bearer 1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
+  -H "Accept: application/json"
+```
+
+Revoke the current token with `DELETE /api/v1/auth/tokens/current`.
+
+## API overview
+
+All endpoints live under `/api/v1` and (aside from issuing a token) require the `Authorization: Bearer <token>` header. Resource groups:
+
+- `tickets` — CRUD, plus `assign`/`close`/`reopen`/`priority` actions
+- `tickets/{ticket}/comments`, `tickets/{ticket}/attachments`, `tickets/{ticket}/watchers`, `tickets/{ticket}/tags`
+- `saved-filters` — per-user saved ticket-list filters
+- `departments`, `teams`, `ticket-categories`, `tags`, `sla-policies` — admin-managed catalog resources
+
+For the full route list, request/response shapes, and design rationale, see [`docs/superpowers/specs/2026-09-29-api-layer-design.md`](docs/superpowers/specs/2026-09-29-api-layer-design.md).
+
+## Running tests
+
+```bash
+php artisan test
+# or
+vendor/bin/pest
+```
