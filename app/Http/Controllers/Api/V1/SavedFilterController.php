@@ -39,7 +39,7 @@ class SavedFilterController extends Controller
 
     public function update(UpdateSavedFilterRequest $request, SavedFilter $savedFilter, SavedFilterService $service): SavedFilterResource
     {
-        $savedFilter = $service->update($savedFilter, SavedFilterData::fromRequest($request));
+        $savedFilter = $service->update($savedFilter, SavedFilterData::fromRequest($request, $savedFilter));
 
         return new SavedFilterResource($savedFilter);
     }

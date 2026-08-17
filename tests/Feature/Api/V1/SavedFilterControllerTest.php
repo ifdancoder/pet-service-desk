@@ -68,3 +68,25 @@ test('a user can update and delete their own saved filter', function () {
     $this->deleteJson("/api/v1/saved-filters/{$savedFilter->id}")->assertNoContent();
     expect(SavedFilter::find($savedFilter->id))->toBeNull();
 });
+
+test('a partial PATCH with only name preserves the existing filters', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user, ['*']);
+    $savedFilter = SavedFilter::factory()->for($user)->create([
+        'name' => 'Original name',
+        'filters' => ['status' => 'open', 'priority' => 'high'],
+    ]);
+
+    $response = $this->patchJson("/api/v1/saved-filters/{$savedFilter->id}", [
+        'name' => 'renamed',
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('data.name', 'renamed')
+        ->assertJsonPath('data.filters.status', 'open')
+        ->assertJsonPath('data.filters.priority', 'high');
+
+    expect($savedFilter->fresh())
+        ->name->toBe('renamed')
+        ->filters->toBe(['status' => 'open', 'priority' => 'high']);
+});

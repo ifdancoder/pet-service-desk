@@ -28,8 +28,8 @@ class UpdateSavedFilterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'filters' => ['required', 'array'],
+            'name' => ['sometimes', 'string', 'max:255'],
+            'filters' => ['sometimes', 'array'],
             'filters.status' => ['sometimes', Rule::enum(TicketStatus::class)],
             'filters.priority' => ['sometimes', Rule::enum(TicketPriority::class)],
             'filters.assignee_id' => ['sometimes', 'integer', 'exists:users,id'],
