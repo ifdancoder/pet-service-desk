@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\DataTransferObjects\TicketAttachmentData;
+use App\Jobs\ScanAttachment;
 use App\Models\Ticket;
 use App\Models\TicketAttachment;
 use App\Models\User;
@@ -20,7 +21,7 @@ class TicketAttachmentService
             's3'
         );
 
-        return $ticket->attachments()->create([
+        $attachment = $ticket->attachments()->create([
             'uploader_id' => $uploader->id,
             'disk' => 's3',
             'path' => $path,
@@ -28,6 +29,10 @@ class TicketAttachmentService
             'mime_type' => $file->getClientMimeType(),
             'size' => $file->getSize(),
         ]);
+
+        ScanAttachment::dispatch($attachment);
+
+        return $attachment;
     }
 
     public function delete(TicketAttachment $attachment): void

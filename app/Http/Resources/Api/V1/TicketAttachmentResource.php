@@ -18,6 +18,7 @@ class TicketAttachmentResource extends JsonResource
             'original_name' => $this->original_name,
             'mime_type' => $this->mime_type,
             'size' => $this->size,
+            'scanned_at' => $this->scanned_at?->toIso8601String(),
             'created_at' => $this->created_at->toIso8601String(),
         ];
     }
