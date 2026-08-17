@@ -24,8 +24,6 @@ test('creates a violation and dispatches SlaBreached for a breached open ticket'
 });
 
 test('does not create a duplicate violation on a second run', function () {
-    Event::fake();
-
     $ticket = Ticket::factory()->create(['sla_due_at' => now()->subHour()]);
 
     Artisan::call('tickets:detect-sla-breaches');
@@ -35,8 +33,6 @@ test('does not create a duplicate violation on a second run', function () {
 });
 
 test('ignores tickets with no sla_due_at or not yet breached', function () {
-    Event::fake();
-
     Ticket::factory()->create(['sla_due_at' => null]);
     Ticket::factory()->create(['sla_due_at' => now()->addHour()]);
 
@@ -46,8 +42,6 @@ test('ignores tickets with no sla_due_at or not yet breached', function () {
 });
 
 test('ignores closed tickets even if their sla_due_at has passed', function () {
-    Event::fake();
-
     Ticket::factory()->closed()->create(['sla_due_at' => now()->subHour()]);
 
     Artisan::call('tickets:detect-sla-breaches');
