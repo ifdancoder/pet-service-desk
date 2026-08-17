@@ -17,7 +17,6 @@ test('an internal comment notifies staff, not the requester', function () {
     $assignee = User::factory()->for($department)->create();
     $author = User::factory()->for($department)->create();
     Permission::findOrCreate('ticket.view-team');
-    Permission::findOrCreate('ticket.view-all');
     $assignee->givePermissionTo('ticket.view-team');
     $author->givePermissionTo('ticket.view-team');
 
