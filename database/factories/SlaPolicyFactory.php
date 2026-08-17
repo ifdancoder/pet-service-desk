@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\TicketPriority;
 use App\Models\SlaPolicy;
+use App\Models\TicketCategory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -14,7 +15,7 @@ class SlaPolicyFactory extends Factory
     public function definition(): array
     {
         return [
-            'category_id' => null,
+            'category_id' => TicketCategory::factory(),
             'priority' => fake()->randomElement(TicketPriority::cases()),
             'response_time_minutes' => 60,
             'resolution_time_minutes' => 1_440,
