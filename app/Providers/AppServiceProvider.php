@@ -4,7 +4,9 @@ namespace App\Providers;
 
 use App\Enums\UserRole;
 use App\Models\User;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -24,6 +26,14 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::before(function (User $user, string $ability) {
             return $user->hasRole(UserRole::Administrator->value) ? true : null;
+        });
+
+        // Laravel's classic default "api" limiter (60 requests/minute, keyed by
+        // authenticated user ID or IP) — the Laravel 11+ slim skeleton no longer
+        // registers this automatically, so it must be defined explicitly for
+        // `$middleware->throttleApi()` (bootstrap/app.php) to have a limiter to use.
+        RateLimiter::for('api', function ($request) {
+            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
     }
 }

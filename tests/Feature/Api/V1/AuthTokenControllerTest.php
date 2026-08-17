@@ -43,3 +43,19 @@ test('a authenticated user can revoke their current token', function () {
 test('revoking a token requires authentication', function () {
     $this->deleteJson('/api/v1/auth/tokens/current')->assertUnauthorized();
 });
+
+test('repeated failed login attempts are rate limited', function () {
+    $user = User::factory()->create(['password' => bcrypt('correct-password')]);
+
+    for ($attempt = 1; $attempt <= 5; $attempt++) {
+        $this->postJson('/api/v1/auth/tokens', [
+            'email' => $user->email,
+            'password' => 'wrong-password',
+        ])->assertUnprocessable();
+    }
+
+    $this->postJson('/api/v1/auth/tokens', [
+        'email' => $user->email,
+        'password' => 'wrong-password',
+    ])->assertStatus(429);
+});
