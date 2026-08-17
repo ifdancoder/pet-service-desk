@@ -11,15 +11,16 @@ use App\Models\Ticket;
 use App\Models\TicketComment;
 use App\Services\TicketCommentService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class TicketCommentController extends Controller
 {
-    public function index(Ticket $ticket): TicketCommentCollection
+    public function index(Request $request, Ticket $ticket): TicketCommentCollection
     {
         $this->authorize('view', $ticket);
 
-        return new TicketCommentCollection($ticket->comments()->paginate(15));
+        return new TicketCommentCollection($ticket->comments()->visibleTo($request->user())->paginate(15));
     }
 
     public function store(StoreTicketCommentRequest $request, Ticket $ticket, TicketCommentService $service): JsonResponse

@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api\V1;
 use App\Models\Ticket;
 use App\Models\TicketComment;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreTicketCommentRequest extends FormRequest
 {
@@ -20,7 +21,9 @@ class StoreTicketCommentRequest extends FormRequest
     {
         return [
             'body' => ['required', 'string'],
-            'is_internal' => ['sometimes', 'boolean'],
+            'is_internal' => ['sometimes', 'boolean', Rule::prohibitedIf(
+                fn () => $this->boolean('is_internal') && ! ($this->user()->can('ticket.view-team') || $this->user()->can('ticket.view-all'))
+            )],
         ];
     }
 }
