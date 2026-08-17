@@ -5,6 +5,10 @@ namespace App\Services;
 use App\DataTransferObjects\TicketData;
 use App\Enums\TicketPriority;
 use App\Enums\TicketStatus;
+use App\Events\TicketAssigned;
+use App\Events\TicketClosed;
+use App\Events\TicketCreated;
+use App\Events\TicketReopened;
 use App\Models\Tag;
 use App\Models\Ticket;
 use App\Models\User;
@@ -29,6 +33,8 @@ class TicketService
         ]);
 
         $ticket->update(['sla_due_at' => $this->slaCalculator->calculate($ticket)]);
+
+        event(new TicketCreated($ticket));
 
         return $ticket;
     }
@@ -57,6 +63,8 @@ class TicketService
     {
         $ticket->update(['assignee_id' => $assignee->id]);
 
+        event(new TicketAssigned($ticket));
+
         return $ticket;
     }
 
@@ -73,12 +81,16 @@ class TicketService
     {
         $ticket->update(['status' => TicketStatus::Closed, 'closed_at' => now()]);
 
+        event(new TicketClosed($ticket));
+
         return $ticket;
     }
 
     public function reopen(Ticket $ticket): Ticket
     {
         $ticket->update(['status' => TicketStatus::Open, 'closed_at' => null]);
+
+        event(new TicketReopened($ticket));
 
         return $ticket;
     }
