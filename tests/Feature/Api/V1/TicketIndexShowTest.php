@@ -27,7 +27,12 @@ test('a user only sees tickets their permissions make visible', function () {
 
     $response = $this->getJson('/api/v1/tickets');
 
-    $response->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $own->id);
+    $response->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $own->id)
+        ->assertJsonPath('data.0.requester.id', $own->requester_id)
+        ->assertJsonPath('data.0.category.id', $own->category_id)
+        ->assertJsonPath('data.0.department.id', $own->department_id);
 });
 
 test('the status query param filters the visible list', function () {
@@ -105,6 +110,11 @@ test('viewing a single ticket is gated by TicketPolicy::view', function () {
     $ownTicket = Ticket::factory()->create(['requester_id' => $user->id]);
     $othersTicket = Ticket::factory()->create();
 
-    $this->getJson("/api/v1/tickets/{$ownTicket->id}")->assertOk();
+    $this->getJson("/api/v1/tickets/{$ownTicket->id}")
+        ->assertOk()
+        ->assertJsonPath('data.requester.id', $user->id)
+        ->assertJsonPath('data.category.id', $ownTicket->category_id)
+        ->assertJsonPath('data.department.id', $ownTicket->department_id)
+        ->assertJsonPath('data.tags', []);
     $this->getJson("/api/v1/tickets/{$othersTicket->id}")->assertForbidden();
 });

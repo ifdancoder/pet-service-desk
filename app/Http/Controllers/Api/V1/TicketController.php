@@ -35,7 +35,8 @@ class TicketController extends Controller
             $filters = array_merge($savedFilter->filters, $filters);
         }
 
-        $query = Ticket::query()->visibleTo($request->user());
+        $query = Ticket::query()->visibleTo($request->user())
+            ->with(['requester', 'assignee', 'category', 'department', 'team', 'tags']);
         $filter->apply($query, $filters);
 
         return new TicketCollection($query->latest()->paginate(15));
@@ -44,6 +45,8 @@ class TicketController extends Controller
     public function show(Ticket $ticket): TicketResource
     {
         $this->authorize('view', $ticket);
+
+        $ticket->load(['requester', 'assignee', 'category', 'department', 'team', 'tags']);
 
         return new TicketResource($ticket);
     }

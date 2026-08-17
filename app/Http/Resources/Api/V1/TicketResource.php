@@ -27,6 +27,12 @@ class TicketResource extends JsonResource
             'closed_at' => $this->closed_at?->toIso8601String(),
             'created_at' => $this->created_at->toIso8601String(),
             'updated_at' => $this->updated_at->toIso8601String(),
+            'requester' => new UserResource($this->whenLoaded('requester')),
+            'assignee' => new UserResource($this->whenLoaded('assignee')),
+            'category' => new TicketCategoryResource($this->whenLoaded('category')),
+            'department' => new DepartmentResource($this->whenLoaded('department')),
+            'team' => new TeamResource($this->whenLoaded('team')),
+            'tags' => TagResource::collection($this->whenLoaded('tags')),
         ];
     }
 }
