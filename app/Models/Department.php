@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Spatie\Permission\Models\Permission;
 
 #[Fillable(['name', 'slug'])]
 class Department extends Model
@@ -27,6 +28,15 @@ class Department extends Model
 
     public function staffUsers(): Collection
     {
-        return $this->users()->permission(['ticket.view-team', 'ticket.view-all'])->get();
+        $permissionNames = Permission::query()
+            ->whereIn('name', ['ticket.view-team', 'ticket.view-all'])
+            ->pluck('name')
+            ->all();
+
+        if ($permissionNames === []) {
+            return new Collection();
+        }
+
+        return $this->users()->permission($permissionNames)->get();
     }
 }
