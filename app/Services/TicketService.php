@@ -8,12 +8,15 @@ use App\Enums\TicketStatus;
 use App\Models\Tag;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\Sla\SlaCalculator;
 
 class TicketService
 {
+    public function __construct(private readonly SlaCalculator $slaCalculator) {}
+
     public function create(TicketData $data, User $requester): Ticket
     {
-        return Ticket::create([
+        $ticket = Ticket::create([
             'requester_id' => $requester->id,
             'assignee_id' => $data->assigneeId,
             'category_id' => $data->categoryId,
@@ -24,6 +27,10 @@ class TicketService
             'status' => TicketStatus::Open,
             'priority' => $data->priority,
         ]);
+
+        $ticket->update(['sla_due_at' => $this->slaCalculator->calculate($ticket)]);
+
+        return $ticket;
     }
 
     public function update(Ticket $ticket, TicketData $data): Ticket
@@ -56,6 +63,8 @@ class TicketService
     public function changePriority(Ticket $ticket, TicketPriority $priority): Ticket
     {
         $ticket->update(['priority' => $priority]);
+
+        $ticket->update(['sla_due_at' => $this->slaCalculator->calculate($ticket)]);
 
         return $ticket;
     }
