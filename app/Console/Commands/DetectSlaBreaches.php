@@ -20,7 +20,7 @@ class DetectSlaBreaches extends Command
             ->where('sla_due_at', '<', now())
             ->open()
             ->whereDoesntHave('violations')
-            ->each(function (Ticket $ticket) use ($calculator) {
+            ->eachById(function (Ticket $ticket) use ($calculator) {
                 $policy = $calculator->applicablePolicyFor($ticket);
 
                 $violation = $ticket->violations()->create([

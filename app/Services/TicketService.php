@@ -41,6 +41,8 @@ class TicketService
 
     public function update(Ticket $ticket, TicketData $data): Ticket
     {
+        $previousAssigneeId = $ticket->assignee_id;
+
         $ticket->update([
             'assignee_id' => $data->assigneeId,
             'category_id' => $data->categoryId,
@@ -50,6 +52,12 @@ class TicketService
             'description' => $data->description,
             'priority' => $data->priority,
         ]);
+
+        $ticket->update(['sla_due_at' => $this->slaCalculator->calculate($ticket)]);
+
+        if ($ticket->assignee_id !== null && $ticket->assignee_id !== $previousAssigneeId) {
+            event(new TicketAssigned($ticket));
+        }
 
         return $ticket;
     }

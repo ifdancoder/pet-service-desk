@@ -13,6 +13,8 @@ class ScanAttachment implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public $deleteWhenMissingModels = true;
+
     public function __construct(public readonly TicketAttachment $attachment) {}
 
     public function handle(): void

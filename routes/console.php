@@ -8,4 +8,4 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('tickets:detect-sla-breaches')->everyMinute();
+Schedule::command('tickets:detect-sla-breaches')->everyMinute()->withoutOverlapping();

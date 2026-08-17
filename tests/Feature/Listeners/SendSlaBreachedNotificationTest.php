@@ -29,6 +29,18 @@ test('notifies the team_leads of the ticket team', function () {
     Notification::assertSentTo($teamLead, SlaBreachedNotification::class);
 });
 
+test('does not send and does not throw when the team_lead role is not seeded', function () {
+    Notification::fake();
+
+    $department = Department::factory()->create();
+    $ticket = Ticket::factory()->create(['department_id' => $department->id, 'team_id' => null]);
+    $violation = SlaViolation::factory()->create(['ticket_id' => $ticket->id]);
+
+    event(new SlaBreached($violation));
+
+    Notification::assertNothingSent();
+});
+
 test('falls back to department team_leads when the ticket has no team', function () {
     (new RolePermissionSeeder)->run();
     Notification::fake();

@@ -30,11 +30,12 @@ class Department extends Model
     {
         $permissionNames = Permission::query()
             ->whereIn('name', ['ticket.view-team', 'ticket.view-all'])
+            ->where('guard_name', config('auth.defaults.guard'))
             ->pluck('name')
             ->all();
 
         if ($permissionNames === []) {
-            return new Collection();
+            return User::query()->whereRaw('1 = 0')->get();
         }
 
         return $this->users()->permission($permissionNames)->get();
