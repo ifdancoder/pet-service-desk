@@ -33,6 +33,7 @@ class TicketCommentController extends Controller
     public function destroy(Ticket $ticket, TicketComment $comment, TicketCommentService $service): Response
     {
         $this->authorize('delete', $comment);
+        abort_unless($comment->ticket_id === $ticket->id, 404);
 
         $service->delete($comment);
 

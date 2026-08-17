@@ -103,6 +103,22 @@ test('a customer gets 422 posting a comment with is_internal true', function () 
     ])->assertUnprocessable()->assertJsonValidationErrors('is_internal');
 });
 
+test('deleting a comment that belongs to a different ticket returns 404', function () {
+    $user = User::factory()->create();
+    Permission::findOrCreate('comment.delete-any');
+    $user->givePermissionTo('comment.delete-any');
+    Sanctum::actingAs($user, ['*']);
+
+    $ticketA = Ticket::factory()->create();
+    $ticketB = Ticket::factory()->create();
+    $commentOnTicketB = TicketComment::factory()->for($ticketB)->create();
+
+    $this->deleteJson("/api/v1/tickets/{$ticketA->id}/comments/{$commentOnTicketB->id}")
+        ->assertNotFound();
+
+    expect(TicketComment::find($commentOnTicketB->id))->not->toBeNull();
+});
+
 test('a support agent can post an internal comment', function () {
     $user = User::factory()->create();
     Permission::findOrCreate('comment.create');
