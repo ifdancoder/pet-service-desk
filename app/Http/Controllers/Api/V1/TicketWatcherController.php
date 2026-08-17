@@ -31,7 +31,7 @@ class TicketWatcherController extends Controller
 
     public function destroy(Ticket $ticket, User $watcher, TicketService $service): Response
     {
-        $this->authorize('update', $ticket);
+        $this->authorize('view', $ticket);
 
         $service->detachWatcher($ticket, $watcher);
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\TicketStatus;
+use App\Models\Team;
 use App\Models\Ticket;
 use App\Models\TicketAttachment;
 use App\Models\User;
@@ -27,10 +28,10 @@ test('listing attachments requires view access to the ticket', function () {
     $this->getJson("/api/v1/tickets/{$othersTicket->id}/attachments")->assertForbidden();
 });
 
-test("uploading an attachment requires update access to the user's own open ticket", function () {
+test("uploading an attachment requires view access to the user's own open ticket", function () {
     $user = User::factory()->create();
-    Permission::findOrCreate('ticket.update-own');
-    $user->givePermissionTo('ticket.update-own');
+    Permission::findOrCreate('ticket.view-own');
+    $user->givePermissionTo('ticket.view-own');
     Sanctum::actingAs($user, ['*']);
 
     $ownOpenTicket = Ticket::factory()->create([
@@ -55,8 +56,8 @@ test("uploading an attachment requires update access to the user's own open tick
 
 test('uploading rejects a file over the size limit', function () {
     $user = User::factory()->create();
-    Permission::findOrCreate('ticket.update-own');
-    $user->givePermissionTo('ticket.update-own');
+    Permission::findOrCreate('ticket.view-own');
+    $user->givePermissionTo('ticket.view-own');
     Sanctum::actingAs($user, ['*']);
 
     $ownOpenTicket = Ticket::factory()->create([
@@ -69,10 +70,10 @@ test('uploading rejects a file over the size limit', function () {
         ->assertUnprocessable();
 });
 
-test('deleting an attachment requires update access to the ticket', function () {
+test('deleting an attachment requires view access to the ticket', function () {
     $user = User::factory()->create();
-    Permission::findOrCreate('ticket.update-own');
-    $user->givePermissionTo('ticket.update-own');
+    Permission::findOrCreate('ticket.view-own');
+    $user->givePermissionTo('ticket.view-own');
     Sanctum::actingAs($user, ['*']);
 
     $ownOpenTicket = Ticket::factory()->create([
@@ -111,8 +112,8 @@ test('downloading an attachment redirects to a temporary URL', function () {
 
 test('deleting an attachment that belongs to a different ticket returns 404', function () {
     $user = User::factory()->create();
-    Permission::findOrCreate('ticket.update-own');
-    $user->givePermissionTo('ticket.update-own');
+    Permission::findOrCreate('ticket.view-own');
+    $user->givePermissionTo('ticket.view-own');
     Sanctum::actingAs($user, ['*']);
 
     $ownOpenTicket = Ticket::factory()->create([
@@ -149,4 +150,22 @@ test('downloading an attachment that belongs to a different ticket returns 404',
 
     $this->get("/api/v1/tickets/{$ownTicket->id}/attachments/{$attachment->id}/download")
         ->assertNotFound();
+});
+
+test('a support agent (view-team, no update-own) can upload an attachment to a team ticket', function () {
+    $agent = User::factory()->create();
+    Permission::findOrCreate('ticket.view-team');
+    $agent->givePermissionTo('ticket.view-team');
+    Sanctum::actingAs($agent, ['*']);
+
+    $team = Team::factory()->create();
+    $agent->teams()->attach($team);
+    $ticket = Ticket::factory()->create([
+        'team_id' => $team->id,
+        'status' => TicketStatus::Open,
+    ]);
+    $file = UploadedFile::fake()->create('notes.pdf', 100, 'application/pdf');
+
+    $this->postJson("/api/v1/tickets/{$ticket->id}/attachments", ['file' => $file])
+        ->assertCreated();
 });

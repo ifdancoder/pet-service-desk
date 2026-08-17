@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\TicketStatus;
+use App\Models\Team;
 use App\Models\Ticket;
 use App\Models\User;
 use Laravel\Sanctum\Sanctum;
@@ -21,10 +22,10 @@ test('listing watchers requires view access to the ticket', function () {
     $this->getJson("/api/v1/tickets/{$othersTicket->id}/watchers")->assertForbidden();
 });
 
-test('adding a watcher requires update access to an open ticket', function () {
+test('adding a watcher requires view access to an open ticket', function () {
     $user = User::factory()->create();
-    Permission::findOrCreate('ticket.update-own');
-    $user->givePermissionTo('ticket.update-own');
+    Permission::findOrCreate('ticket.view-own');
+    $user->givePermissionTo('ticket.view-own');
     Sanctum::actingAs($user, ['*']);
 
     $ownOpenTicket = Ticket::factory()->create([
@@ -44,10 +45,10 @@ test('adding a watcher requires update access to an open ticket', function () {
         ->assertForbidden();
 });
 
-test('removing a watcher requires update access to the ticket', function () {
+test('removing a watcher requires view access to the ticket', function () {
     $user = User::factory()->create();
-    Permission::findOrCreate('ticket.update-own');
-    $user->givePermissionTo('ticket.update-own');
+    Permission::findOrCreate('ticket.view-own');
+    $user->givePermissionTo('ticket.view-own');
     Sanctum::actingAs($user, ['*']);
 
     $ownOpenTicket = Ticket::factory()->create([
@@ -60,4 +61,24 @@ test('removing a watcher requires update access to the ticket', function () {
     $this->deleteJson("/api/v1/tickets/{$ownOpenTicket->id}/watchers/{$watcher->id}")->assertNoContent();
 
     expect($ownOpenTicket->watchers()->count())->toBe(0);
+});
+
+test('a support agent (view-team, no update-own) can add a watcher to a team ticket', function () {
+    $agent = User::factory()->create();
+    Permission::findOrCreate('ticket.view-team');
+    $agent->givePermissionTo('ticket.view-team');
+    Sanctum::actingAs($agent, ['*']);
+
+    $team = Team::factory()->create();
+    $agent->teams()->attach($team);
+    $ticket = Ticket::factory()->create([
+        'team_id' => $team->id,
+        'status' => TicketStatus::Open,
+    ]);
+    $watcher = User::factory()->create();
+
+    $this->postJson("/api/v1/tickets/{$ticket->id}/watchers", ['user_id' => $watcher->id])
+        ->assertCreated();
+
+    expect($ticket->watchers()->pluck('users.id')->all())->toBe([$watcher->id]);
 });

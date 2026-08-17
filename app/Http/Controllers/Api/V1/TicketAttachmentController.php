@@ -33,7 +33,7 @@ class TicketAttachmentController extends Controller
 
     public function destroy(Ticket $ticket, TicketAttachment $attachment, TicketAttachmentService $service): Response
     {
-        $this->authorize('update', $ticket);
+        $this->authorize('view', $ticket);
         abort_unless($attachment->ticket_id === $ticket->id, 404);
 
         $service->delete($attachment);

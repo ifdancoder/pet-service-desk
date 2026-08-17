@@ -8,7 +8,7 @@ class StoreTicketWatcherRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('update', $this->route('ticket'));
+        return $this->user()->can('view', $this->route('ticket'));
     }
 
     public function rules(): array
