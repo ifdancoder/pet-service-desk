@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\V1;
 
 use App\Enums\TicketPriority;
+use App\Rules\ProhibitedWithoutPermission;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,8 +22,8 @@ class UpdateTicketRequest extends FormRequest
             'priority' => ['sometimes', Rule::enum(TicketPriority::class), Rule::prohibitedIf(fn () => ! $this->user()->can('ticket.change-priority'))],
             'category_id' => ['required', 'integer', Rule::exists('ticket_categories', 'id')->where('active', true)],
             'department_id' => ['required', 'integer', 'exists:departments,id'],
-            'team_id' => ['nullable', 'integer', 'exists:teams,id', Rule::prohibitedIf(fn () => ! $this->user()->can('ticket.assign'))],
-            'assignee_id' => ['nullable', 'integer', 'exists:users,id', Rule::prohibitedIf(fn () => ! $this->user()->can('ticket.assign'))],
+            'team_id' => ['nullable', 'integer', 'exists:teams,id', new ProhibitedWithoutPermission($this->user(), 'ticket.assign')],
+            'assignee_id' => ['nullable', 'integer', 'exists:users,id', new ProhibitedWithoutPermission($this->user(), 'ticket.assign')],
         ];
     }
 }

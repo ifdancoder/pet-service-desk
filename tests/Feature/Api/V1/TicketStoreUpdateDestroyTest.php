@@ -16,14 +16,16 @@ test('creating a ticket requires the ticket.create permission', function () {
     $category = TicketCategory::factory()->create();
     $department = Department::factory()->create();
 
+    // team_id/assignee_id deliberately omitted: this user only ever holds
+    // ticket.create (not ticket.assign), and — per the ProhibitedWithoutPermission
+    // rule — those keys aren't allowed in the payload at all without it, even
+    // set explicitly to null. See the dedicated C2 tests below.
     $payload = [
         'subject' => 'Printer on fire',
         'description' => 'Smoke coming out of the printer.',
         'priority' => 'critical',
         'category_id' => $category->id,
         'department_id' => $department->id,
-        'team_id' => null,
-        'assignee_id' => null,
     ];
 
     $this->postJson('/api/v1/tickets', $payload)->assertForbidden();
@@ -252,6 +254,35 @@ test('updating only subject/description preserves the existing assignee_id and t
         ->assertJsonPath('data.subject', 'Only the subject changed')
         ->assertJsonPath('data.team_id', $team->id)
         ->assertJsonPath('data.assignee_id', $assignee->id);
+
+    expect($ownTicket->fresh())
+        ->team_id->toBe($team->id)
+        ->assignee_id->toBe($assignee->id);
+});
+
+test('updating a ticket with explicit null assignee_id/team_id without ticket.assign is rejected and does not clear them', function () {
+    $user = User::factory()->create();
+    Permission::findOrCreate('ticket.update-own');
+    $user->givePermissionTo('ticket.update-own');
+    Sanctum::actingAs($user, ['*']);
+
+    $team = Team::factory()->create();
+    $assignee = User::factory()->create();
+    $ownTicket = Ticket::factory()->create([
+        'requester_id' => $user->id,
+        'status' => TicketStatus::Open,
+        'team_id' => $team->id,
+        'assignee_id' => $assignee->id,
+    ]);
+
+    $this->putJson("/api/v1/tickets/{$ownTicket->id}", [
+        'subject' => 'Still just the subject',
+        'description' => $ownTicket->description,
+        'category_id' => $ownTicket->category_id,
+        'department_id' => $ownTicket->department_id,
+        'assignee_id' => null,
+        'team_id' => null,
+    ])->assertUnprocessable()->assertJsonValidationErrors(['assignee_id', 'team_id']);
 
     expect($ownTicket->fresh())
         ->team_id->toBe($team->id)
