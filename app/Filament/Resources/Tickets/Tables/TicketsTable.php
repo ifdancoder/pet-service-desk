@@ -5,11 +5,18 @@ namespace App\Filament\Resources\Tickets\Tables;
 use App\Enums\TicketPriority;
 use App\Enums\TicketStatus;
 use App\Filament\Resources\Tickets\TicketResource;
+use App\Models\Ticket;
+use App\Models\User;
+use App\Services\TicketService;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Forms\Components\Select;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 
 class TicketsTable
@@ -55,6 +62,38 @@ class TicketsTable
                 TicketResource::closeAction(),
                 TicketResource::reopenAction(),
                 TicketResource::changePriorityAction(),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    BulkAction::make('bulkAssign')
+                        ->schema([
+                            Select::make('assignee_id')
+                                ->label('Assignee')
+                                ->options(fn () => User::query()->pluck('name', 'id'))
+                                ->required(),
+                        ])
+                        ->action(function (Collection $records, array $data): void {
+                            $assignee = User::findOrFail($data['assignee_id']);
+                            $records->each(fn (Ticket $ticket) => app(TicketService::class)->assign($ticket, $assignee));
+                        }),
+                    BulkAction::make('bulkClose')
+                        ->requiresConfirmation()
+                        ->action(function (Collection $records): void {
+                            $records->each(fn (Ticket $ticket) => app(TicketService::class)->close($ticket));
+                        }),
+                    BulkAction::make('bulkChangePriority')
+                        ->schema([
+                            Select::make('priority')
+                                ->options(TicketPriority::class)
+                                ->required(),
+                        ])
+                        ->action(function (Collection $records, array $data): void {
+                            $priority = $data['priority'] instanceof TicketPriority
+                                ? $data['priority']
+                                : TicketPriority::from($data['priority']);
+                            $records->each(fn (Ticket $ticket) => app(TicketService::class)->changePriority($ticket, $priority));
+                        }),
+                ]),
             ]);
     }
 }
