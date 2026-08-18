@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Tickets\Tables;
 
 use App\Enums\TicketPriority;
 use App\Enums\TicketStatus;
+use App\Filament\Resources\Tickets\TicketResource;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -48,6 +49,12 @@ class TicketsTable
                     ->relationship('assignee', 'name'),
                 Filter::make('breached')
                     ->query(fn (Builder $query): Builder => $query->whereHas('violations')),
+            ])
+            ->recordActions([
+                TicketResource::assignAction(),
+                TicketResource::closeAction(),
+                TicketResource::reopenAction(),
+                TicketResource::changePriorityAction(),
             ]);
     }
 }

@@ -28,4 +28,14 @@ class EditTicket extends EditRecord
 
         return app(TicketService::class)->update($record, $ticketData);
     }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            TicketResource::assignAction(),
+            TicketResource::closeAction(),
+            TicketResource::reopenAction(),
+            TicketResource::changePriorityAction(),
+        ];
+    }
 }
