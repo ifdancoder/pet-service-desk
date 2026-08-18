@@ -9,7 +9,7 @@ use Spatie\Permission\Models\Role;
 test('the role/permission seeder creates all roles and permissions with the right assignments', function () {
     Artisan::call('db:seed', ['--class' => RolePermissionSeeder::class]);
 
-    expect(Permission::count())->toBe(16)
+    expect(Permission::count())->toBe(18)
         ->and(Role::count())->toBe(5);
 
     $customer = Role::findByName(UserRole::Customer->value);
@@ -18,7 +18,7 @@ test('the role/permission seeder creates all roles and permissions with the righ
 
     $teamLead = Role::findByName(UserRole::TeamLead->value);
     expect($teamLead->permissions->pluck('name')->sort()->values()->all())
-        ->toBe(['comment.delete-any', 'ticket.assign']);
+        ->toBe(['comment.delete-any', 'ticket.assign', 'ticket.manage']);
 
     $supportAgent = Role::findByName(UserRole::SupportAgent->value);
     expect($supportAgent->permissions->pluck('name')->sort()->values()->all())
@@ -28,6 +28,7 @@ test('the role/permission seeder creates all roles and permissions with the righ
             'ticket.change-priority',
             'ticket.close',
             'ticket.create',
+            'ticket.manage',
             'ticket.reopen',
             'ticket.view-own',
             'ticket.view-team',
@@ -38,15 +39,17 @@ test('the role/permission seeder creates all roles and permissions with the righ
         ->toBe([
             'comment.create',
             'comment.delete-any',
+            'org.manage',
             'sla.manage',
             'ticket.assign',
             'ticket.change-priority',
             'ticket.close',
             'ticket.delete',
+            'ticket.manage',
             'ticket.reopen',
             'ticket.view-all',
         ]);
 
     $administrator = Role::findByName(UserRole::Administrator->value);
-    expect($administrator->permissions()->count())->toBe(16);
+    expect($administrator->permissions()->count())->toBe(18);
 });

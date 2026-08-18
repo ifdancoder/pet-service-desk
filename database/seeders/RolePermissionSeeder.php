@@ -29,6 +29,8 @@ class RolePermissionSeeder extends Seeder
         'sla.manage',
         'user.manage',
         'role.manage',
+        'org.manage',
+        'ticket.manage',
     ];
 
     /**
@@ -49,11 +51,13 @@ class RolePermissionSeeder extends Seeder
             'ticket.change-priority',
             'ticket.close',
             'ticket.reopen',
+            'ticket.manage',
             'comment.create',
             'comment.delete-own',
         ],
         'team_lead' => [
             'ticket.assign',
+            'ticket.manage',
             'comment.delete-any',
         ],
         'support_manager' => [
@@ -63,9 +67,11 @@ class RolePermissionSeeder extends Seeder
             'ticket.close',
             'ticket.reopen',
             'ticket.delete',
+            'ticket.manage',
             'comment.create',
             'comment.delete-any',
             'sla.manage',
+            'org.manage',
         ],
         'administrator' => [
             'ticket.view-own',
@@ -78,12 +84,14 @@ class RolePermissionSeeder extends Seeder
             'ticket.close',
             'ticket.reopen',
             'ticket.delete',
+            'ticket.manage',
             'comment.create',
             'comment.delete-own',
             'comment.delete-any',
             'sla.manage',
             'user.manage',
             'role.manage',
+            'org.manage',
         ],
     ];
 
