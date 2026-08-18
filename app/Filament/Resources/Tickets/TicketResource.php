@@ -8,6 +8,7 @@ use App\Filament\Resources\Tickets\Pages\EditTicket;
 use App\Filament\Resources\Tickets\Pages\ListTickets;
 use App\Filament\Resources\Tickets\RelationManagers\AttachmentsRelationManager;
 use App\Filament\Resources\Tickets\RelationManagers\CommentsRelationManager;
+use App\Filament\Resources\Tickets\RelationManagers\WatchersRelationManager;
 use App\Filament\Resources\Tickets\Schemas\TicketForm;
 use App\Filament\Resources\Tickets\Tables\TicketsTable;
 use App\Models\Ticket;
@@ -105,6 +106,7 @@ class TicketResource extends Resource
         return [
             CommentsRelationManager::class,
             AttachmentsRelationManager::class,
+            WatchersRelationManager::class,
         ];
     }
 
