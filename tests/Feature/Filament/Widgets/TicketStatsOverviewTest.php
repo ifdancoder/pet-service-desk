@@ -23,10 +23,22 @@ test('shows counts scoped to what the acting user can see', function () {
 
     Ticket::factory()->create(['requester_id' => $user->id, 'status' => TicketStatus::Open, 'priority' => TicketPriority::High]);
     Ticket::factory()->create(['requester_id' => $user->id, 'status' => TicketStatus::Closed]);
-    Ticket::factory()->create(); // someone else's ticket — must not count
+    // Someone else's ticket shares the SAME status and priority as the user's own
+    // visible ticket — if visibleTo() scoping were broken (unscoped), the Open/High
+    // counts would both show 2 instead of 1, so this genuinely proves scoping works
+    // rather than coincidentally passing regardless of it.
+    Ticket::factory()->create(['status' => TicketStatus::Open, 'priority' => TicketPriority::High]);
 
     $this->actingAs($user, 'web');
 
-    Livewire::test(TicketStatsOverview::class)
-        ->assertSee('1'); // the one Open ticket belonging to $user
+    $html = Livewire::test(TicketStatsOverview::class)->html();
+
+    // Extract all stat values from the rendered output
+    preg_match_all('/fi-wi-stats-overview-stat-value[^>]*>\s*(\d+)\s*</', $html, $matches);
+    $statValues = $matches[1] ?? [];
+
+    // With broken scoping (Ticket::query() without visibleTo), we'd count all tickets
+    // With correct scoping, we should only count what the user can see
+    expect(in_array('1', $statValues))->toBeTrue();
+    expect(in_array('2', $statValues))->toBeFalse();
 });
