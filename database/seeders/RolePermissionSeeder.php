@@ -104,6 +104,9 @@ class RolePermissionSeeder extends Seeder
         foreach (UserRole::cases() as $userRole) {
             $role = Role::findOrCreate($userRole->value);
             $role->syncPermissions(self::ROLE_PERMISSIONS[$userRole->value]);
+
+            // Create the same role for the 'web' guard (used by Filament)
+            Role::findOrCreate($userRole->value, 'web');
         }
     }
 }

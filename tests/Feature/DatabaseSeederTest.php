@@ -22,7 +22,7 @@ test('the database seeder produces a coherent demo dataset', function () {
         ->and(SlaPolicy::count())->toBe(24)
         ->and(Tag::count())->toBe(8)
         ->and(Ticket::count())->toBe(40)
-        ->and(Role::count())->toBe(5)
+        ->and(Role::count())->toBe(10)
         ->and(Permission::count())->toBe(18);
 
     $testUser = User::where('email', 'test@example.com')->first();
