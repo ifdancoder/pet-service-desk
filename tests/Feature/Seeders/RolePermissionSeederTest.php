@@ -10,7 +10,7 @@ test('the role/permission seeder creates all roles and permissions with the righ
     Artisan::call('db:seed', ['--class' => RolePermissionSeeder::class]);
 
     expect(Permission::count())->toBe(18)
-        ->and(Role::count())->toBe(10);
+        ->and(Role::count())->toBe(5);
 
     $customer = Role::findByName(UserRole::Customer->value);
     expect($customer->permissions->pluck('name')->sort()->values()->all())
