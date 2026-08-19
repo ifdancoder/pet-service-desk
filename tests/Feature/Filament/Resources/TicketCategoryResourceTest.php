@@ -13,8 +13,11 @@ use Livewire\Livewire;
 
 beforeEach(function () {
     Artisan::call('db:seed', ['--class' => RolePermissionSeeder::class]);
+    // support_manager, not administrator: AppServiceProvider's
+    // Gate::before(administrator => true) short-circuits every Policy check, so
+    // an administrator acting user would never exercise TicketCategoryPolicy at all.
     $this->staff = User::factory()->create();
-    $this->staff->assignRole(UserRole::Administrator->value);
+    $this->staff->assignRole(UserRole::SupportManager->value);
     $this->actingAs($this->staff, 'web');
 });
 
@@ -48,4 +51,12 @@ test('edits a ticket category', function () {
         ->assertHasNoFormErrors();
 
     expect($category->fresh()->active)->toBeFalse();
+});
+
+test('a user without org.manage cannot access the ticket category resource', function () {
+    $agent = User::factory()->create();
+    $agent->assignRole(UserRole::SupportAgent->value);
+    $this->actingAs($agent, 'web');
+
+    Livewire::test(ListTicketCategories::class)->assertForbidden();
 });

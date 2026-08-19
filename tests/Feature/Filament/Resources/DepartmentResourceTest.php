@@ -12,8 +12,11 @@ use Livewire\Livewire;
 
 beforeEach(function () {
     Artisan::call('db:seed', ['--class' => RolePermissionSeeder::class]);
+    // support_manager, not administrator: AppServiceProvider's
+    // Gate::before(administrator => true) short-circuits every Policy check, so
+    // an administrator acting user would never exercise DepartmentPolicy at all.
     $this->staff = User::factory()->create();
-    $this->staff->assignRole(UserRole::Administrator->value);
+    $this->staff->assignRole(UserRole::SupportManager->value);
     $this->actingAs($this->staff, 'web');
 });
 

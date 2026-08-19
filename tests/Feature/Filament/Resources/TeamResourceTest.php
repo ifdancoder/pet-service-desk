@@ -14,8 +14,13 @@ use Livewire\Livewire;
 
 beforeEach(function () {
     Artisan::call('db:seed', ['--class' => RolePermissionSeeder::class]);
+    // support_manager, not administrator: AppServiceProvider's
+    // Gate::before(administrator => true) short-circuits every Policy check,
+    // so an administrator acting user would never exercise TeamPolicy at all.
+    // support_manager holds 'org.manage' legitimately, and notably NOT
+    // 'user.manage' — which the members relation manager must not require.
     $this->staff = User::factory()->create();
-    $this->staff->assignRole(UserRole::Administrator->value);
+    $this->staff->assignRole(UserRole::SupportManager->value);
     $this->actingAs($this->staff, 'web');
 });
 
@@ -64,4 +69,41 @@ test('attaches a member to a team via the relation manager', function () {
         ->assertHasNoTableActionErrors();
 
     expect($team->users()->whereKey($member->id)->exists())->toBeTrue();
+});
+
+test('the members tab is visible to an org.manage holder without user.manage', function () {
+    // Regression: canViewForRecord() defaulted to UserPolicy::viewAny()
+    // ('user.manage', administrator-only) instead of the Team resource's own
+    // 'org.manage' gate, hiding the tab from support managers.
+    expect($this->staff->can('user.manage'))->toBeFalse()
+        ->and($this->staff->can('org.manage'))->toBeTrue();
+
+    $team = Team::factory()->create();
+
+    expect(UsersRelationManager::canViewForRecord($team, EditTeam::class))->toBeTrue();
+
+    Livewire::test(UsersRelationManager::class, [
+        'ownerRecord' => $team,
+        'pageClass' => EditTeam::class,
+    ])->assertSuccessful();
+});
+
+test('a user without org.manage cannot access the team resource', function () {
+    $agent = User::factory()->create();
+    $agent->assignRole(UserRole::SupportAgent->value);
+    $this->actingAs($agent, 'web');
+
+    Livewire::test(ListTeams::class)->assertForbidden();
+});
+
+test('a user without org.manage cannot access the team members tab', function () {
+    $agent = User::factory()->create();
+    $agent->assignRole(UserRole::SupportAgent->value);
+    $this->actingAs($agent, 'web');
+
+    $team = Team::factory()->create();
+
+    // canViewForRecord() is what the owning Edit page consults to decide
+    // whether to render the tab at all (HasRelationManagers::getRelationManagers()).
+    expect(UsersRelationManager::canViewForRecord($team, EditTeam::class))->toBeFalse();
 });
