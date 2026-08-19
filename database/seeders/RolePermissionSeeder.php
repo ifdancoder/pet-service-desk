@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\UserRole;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -56,8 +57,10 @@ class RolePermissionSeeder extends Seeder
             'comment.delete-own',
         ],
         'team_lead' => [
+            'ticket.view-team',
             'ticket.assign',
             'ticket.manage',
+            'comment.create',
             'comment.delete-any',
         ],
         'support_manager' => [
@@ -97,12 +100,16 @@ class RolePermissionSeeder extends Seeder
 
     public function run(): void
     {
+        // The guard is pinned explicitly rather than left to
+        // config('auth.defaults.guard'), which AuthManager::setDefaultDriver()
+        // can mutate at runtime — seeded rows must always match User's own
+        // hard-pinned $guard_name or nothing resolves.
         foreach (self::PERMISSIONS as $permission) {
-            Permission::findOrCreate($permission);
+            Permission::findOrCreate($permission, User::GUARD_NAME);
         }
 
         foreach (UserRole::cases() as $userRole) {
-            $role = Role::findOrCreate($userRole->value);
+            $role = Role::findOrCreate($userRole->value, User::GUARD_NAME);
             $role->syncPermissions(self::ROLE_PERMISSIONS[$userRole->value]);
         }
     }

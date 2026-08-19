@@ -32,8 +32,19 @@ class TicketForm
                 Select::make('department_id')
                     ->relationship('department', 'name')
                     ->required(),
+                // Reassigning a ticket's team is gated on 'ticket.assign' on the
+                // API side (UpdateTicketRequest's ProhibitedWithoutPermission).
+                // disabled() already implies saved(false) (see the schemas
+                // package's CanBeDisabled trait), which HasState::isDehydrated()
+                // falls back to — but Select::relationship() installs its own
+                // dehydrated() closure, so the gate is restated explicitly here
+                // rather than left resting on call order. Either way the key is
+                // absent from $data for non-holders, which EditTicket handles by
+                // preserving the record's current team.
                 Select::make('team_id')
-                    ->relationship('team', 'name'),
+                    ->relationship('team', 'name')
+                    ->disabled(fn (): bool => ! auth()->user()->can('ticket.assign'))
+                    ->dehydrated(fn (): bool => auth()->user()->can('ticket.assign')),
             ]);
     }
 }

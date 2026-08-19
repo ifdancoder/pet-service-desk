@@ -58,7 +58,8 @@ class CommentsRelationManager extends RelationManager
                     }),
             ])
             ->recordActions([
-                DeleteAction::make(),
+                DeleteAction::make()
+                    ->action(fn (TicketComment $record) => app(TicketCommentService::class)->delete($record)),
             ]);
     }
 }

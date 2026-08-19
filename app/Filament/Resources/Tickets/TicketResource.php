@@ -48,7 +48,10 @@ class TicketResource extends Resource
     public static function canEdit(Model $record): bool
     {
         /** @var Ticket $record */
-        return auth()->user()->can('ticket.manage') && auth()->user()->can('view', $record);
+        return auth()->user()->can('ticket.manage')
+            && auth()->user()->can('view', $record)
+            // Matches TicketPolicy::update()'s own closed-ticket guard.
+            && ! $record->status->isClosed();
     }
 
     public static function assignAction(): Action

@@ -17,6 +17,9 @@ class SlaBreachTracker extends TableWidget
             ->query(
                 fn (): Builder => Ticket::query()
                     ->visibleTo(auth()->user())
+                    // Matches DetectSlaBreaches' own ->open() scoping: a closed
+                    // ticket is no longer actionable and must not linger here.
+                    ->open()
                     ->whereNotNull('sla_due_at')
                     ->where(function (Builder $query): void {
                         $query->whereHas('violations')

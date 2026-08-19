@@ -11,6 +11,11 @@ class UserPolicy
         return $user->can('user.manage');
     }
 
+    public function create(User $user): bool
+    {
+        return $user->can('user.manage');
+    }
+
     public function view(User $user, User $target): bool
     {
         return $user->can('user.manage') || $user->id === $target->id;

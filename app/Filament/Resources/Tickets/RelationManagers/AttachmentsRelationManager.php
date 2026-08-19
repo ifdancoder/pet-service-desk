@@ -38,8 +38,26 @@ class AttachmentsRelationManager extends RelationManager
             ->headerActions([
                 Action::make('upload')
                     ->schema([
+                        // Mirrors StoreTicketAttachmentRequest's API-side rules
+                        // ('max:10240' + the same extension allow-list).
+                        // Filament's maxSize() is in KB (it compiles straight to
+                        // Laravel's "max:" rule) and acceptedFileTypes()
+                        // compiles to "mimetypes:", so it takes MIME types.
                         FileUpload::make('file')
                             ->storeFiles(false)
+                            ->maxSize(10240)
+                            ->acceptedFileTypes([
+                                'image/jpeg',
+                                'image/png',
+                                'image/gif',
+                                'application/pdf',
+                                'application/msword',
+                                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                'application/vnd.ms-excel',
+                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                'text/plain',
+                                'text/csv',
+                            ])
                             ->required(),
                     ])
                     ->action(function (array $data): void {

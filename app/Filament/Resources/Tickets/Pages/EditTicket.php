@@ -22,7 +22,10 @@ class EditTicket extends EditRecord
             priority: $record->priority,
             categoryId: (int) $data['category_id'],
             departmentId: (int) $data['department_id'],
-            teamId: $data['team_id'] ?? null,
+            // team_id is only dehydrated for users holding 'ticket.assign'
+            // (see TicketForm); when the key is absent the record's current
+            // team must be preserved, not nulled out.
+            teamId: array_key_exists('team_id', $data) ? $data['team_id'] : $record->team_id,
             assigneeId: $record->assignee_id,
         );
 

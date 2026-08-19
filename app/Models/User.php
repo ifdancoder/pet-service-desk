@@ -22,7 +22,16 @@ use Spatie\Permission\Traits\HasRoles;
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser
 {
-    protected $guard_name = 'sanctum';
+    /**
+     * The guard every role/permission row for this model must be created under.
+     *
+     * Exposed as a constant so seeders can pin it explicitly instead of letting
+     * spatie/laravel-permission fall back to the mutable
+     * config('auth.defaults.guard') value.
+     */
+    public const GUARD_NAME = 'sanctum';
+
+    protected $guard_name = self::GUARD_NAME;
 
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
