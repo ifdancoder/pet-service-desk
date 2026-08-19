@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserRole;
+use App\Models\Concerns\HasAuditLog;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -34,7 +35,7 @@ class User extends Authenticatable implements FilamentUser
     protected $guard_name = self::GUARD_NAME;
 
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, Notifiable;
+    use HasApiTokens, HasAuditLog, HasFactory, HasRoles, Notifiable;
 
     /**
      * Get the attributes that should be cast.

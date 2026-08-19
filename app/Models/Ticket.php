@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\TicketPriority;
 use App\Enums\TicketStatus;
+use App\Models\Concerns\HasAuditLog;
 use App\Observers\TicketSearchObserver;
 use Database\Factories\TicketFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -35,7 +36,7 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 class Ticket extends Model
 {
     /** @use HasFactory<TicketFactory> */
-    use HasFactory;
+    use HasFactory, HasAuditLog;
 
     protected function casts(): array
     {

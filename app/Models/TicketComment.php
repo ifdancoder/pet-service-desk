@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAuditLog;
 use Database\Factories\TicketCommentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class TicketComment extends Model
 {
     /** @use HasFactory<TicketCommentFactory> */
-    use HasFactory;
+    use HasFactory, HasAuditLog;
 
     protected function casts(): array
     {

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\TicketPriority;
+use App\Models\Concerns\HasAuditLog;
 use Database\Factories\SlaPolicyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class SlaPolicy extends Model
 {
     /** @use HasFactory<SlaPolicyFactory> */
-    use HasFactory;
+    use HasFactory, HasAuditLog;
 
     protected function casts(): array
     {
