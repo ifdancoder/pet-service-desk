@@ -10,24 +10,42 @@ The core domain is tickets and their sub-resources (comments, attachments, watch
 
 - PHP `^8.3`
 - Composer
-- SQLite (the configured default, see `DB_CONNECTION` in `.env.example`; MySQL/Postgres also work if you point the `DB_*` variables at one)
+- PostgreSQL 15+ (the configured default, see `DB_CONNECTION` in `.env.example`; MySQL also works if you point the `DB_*` variables at one)
 - MinIO or another S3-compatible object store, for ticket attachments
 - Elasticsearch 8.x, for ticket search
 
 ## Setup
 
+The app needs Postgres, MinIO, and Elasticsearch running alongside it. `docker-compose.yml` in the repo root starts all three with the credentials `.env.example` already expects:
+
 ```bash
+docker compose up -d
 composer install
 cp .env.example .env
 php artisan key:generate
 php artisan migrate --seed
 ```
 
-The seeder creates demo roles, permissions, a pool of customers, and sample tickets. `test@example.com` / `password` is seeded as an administrator, so you can log into both the API and the admin panel with it right away. See `database/seeders` for the rest.
+The seeder creates demo roles, permissions, a pool of customers, and sample tickets, and queues them all for indexing in Elasticsearch. `test@example.com` / `password` is seeded as an administrator, so you can log into both the API and the admin panel with it right away. See `database/seeders` for the rest.
+
+## PostgreSQL setup
+
+`.env.example` is already configured for the `postgres` service in `docker-compose.yml`:
+
+```
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=supportflow
+DB_USERNAME=supportflow
+DB_PASSWORD=supportflow-dev-secret
+```
+
+That container also creates a separate `supportflow_testing` database on first boot (see `docker/postgres/init-testing-db.sh`), which is what `phpunit.xml` points the test suite at. Tests run against a real Postgres database, not an in-memory one, so `docker compose up -d postgres` needs to be running before you run the suite too.
 
 ## MinIO setup (attachments)
 
-Ticket attachments are stored in an S3-compatible bucket. `.env.example` is already configured for a local MinIO instance:
+Ticket attachments are stored in an S3-compatible bucket. `.env.example` is already configured for the `minio` service in `docker-compose.yml`:
 
 ```
 AWS_ACCESS_KEY_ID=supportflow
@@ -38,13 +56,9 @@ AWS_ENDPOINT=http://localhost:9000
 AWS_USE_PATH_STYLE_ENDPOINT=true
 ```
 
-Start a local MinIO server and create the bucket:
+The bucket itself still needs creating once, after the container is up:
 
 ```bash
-docker run -d -p 9000:9000 -p 9001:9001 --name supportflow-minio \
-  -e MINIO_ROOT_USER=supportflow -e MINIO_ROOT_PASSWORD=supportflow-dev-secret \
-  minio/minio server /data --console-address ":9001"
-
 mc alias set supportflow-local http://localhost:9000 supportflow supportflow-dev-secret
 mc mb supportflow-local/supportflow-attachments
 ```
@@ -53,22 +67,14 @@ The MinIO console is then available at `http://localhost:9001` (login with the r
 
 ## Elasticsearch setup (search)
 
-Ticket search is backed by Elasticsearch. Start a local single-node instance:
-
-```bash
-docker run -d -p 9200:9200 --name supportflow-elasticsearch \
-  -e discovery.type=single-node -e xpack.security.enabled=false \
-  docker.elastic.co/elasticsearch/elasticsearch:8.15.0
-```
-
-`.env.example` already points at it:
+Ticket search is backed by Elasticsearch. `.env.example` is already configured for the `elasticsearch` service in `docker-compose.yml`:
 
 ```
 ELASTICSEARCH_HOSTS=http://localhost:9200
 ELASTICSEARCH_TICKET_INDEX=tickets
 ```
 
-The `tickets` index gets created automatically the first time a ticket is saved, there's no separate migration step. If Elasticsearch is down or unreachable, ticket create/update/delete still work as normal: indexing happens in a queued job that logs a warning and moves on rather than failing the request. Search itself just returns nothing until the index catches back up.
+The `tickets` index gets created automatically the first time a ticket is indexed, there's no separate migration step. If Elasticsearch is down or unreachable, ticket create/update/delete still work as normal, and search just returns no results rather than failing: indexing happens in a queued job that logs a warning and moves on rather than failing the request, and the search endpoint does the same. Once Elasticsearch is back, run `php artisan tickets:reindex-search` to catch up anything that was missed while it was down.
 
 ## Authentication
 
@@ -108,6 +114,8 @@ A Filament-based admin panel lives at `/admin`. It covers tickets (with inline c
 Ticket status changes, assignments, and comments fire domain events that drive notifications and SLA calculations. Each ticket category can have SLA policies per priority level (response time and resolution time), and a scheduled command flags tickets that have breached their SLA so team leads get notified.
 
 ## Running tests
+
+Needs the Postgres container from the setup step above running (`docker compose up -d postgres`), since the suite runs against a real `supportflow_testing` database rather than an in-memory one.
 
 ```bash
 php artisan test

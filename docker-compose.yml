@@ -1,4 +1,14 @@
 services:
+  postgres:
+    image: postgres:17-alpine
+    ports: ["5432:5432"]
+    environment:
+      POSTGRES_USER: supportflow
+      POSTGRES_PASSWORD: supportflow-dev-secret
+      POSTGRES_DB: supportflow
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init-testing-db.sh:/docker-entrypoint-initdb.d/init-testing-db.sh
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
@@ -16,5 +26,6 @@ services:
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
 volumes:
+  postgres-data:
   minio-data:
   elasticsearch-data:
