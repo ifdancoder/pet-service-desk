@@ -17,7 +17,7 @@ test('any authenticated user can list and view teams', function () {
         ->assertJsonPath('data.id', $team->id);
 });
 
-test('user.manage is required to create a team', function () {
+test('org.manage is required to create a team', function () {
     $user = User::factory()->create();
     $department = Department::factory()->create();
     Sanctum::actingAs($user, ['*']);
@@ -25,8 +25,8 @@ test('user.manage is required to create a team', function () {
     $this->postJson('/api/v1/teams', ['name' => 'Tier 2', 'department_id' => $department->id])
         ->assertForbidden();
 
-    Permission::findOrCreate('user.manage');
-    $user->givePermissionTo('user.manage');
+    Permission::findOrCreate('org.manage');
+    $user->givePermissionTo('org.manage');
 
     $this->postJson('/api/v1/teams', ['name' => 'Tier 2', 'department_id' => $department->id])
         ->assertCreated()
@@ -36,23 +36,23 @@ test('user.manage is required to create a team', function () {
 
 test('creating a team requires a valid department_id', function () {
     $user = User::factory()->create();
-    Permission::findOrCreate('user.manage');
-    $user->givePermissionTo('user.manage');
+    Permission::findOrCreate('org.manage');
+    $user->givePermissionTo('org.manage');
     Sanctum::actingAs($user, ['*']);
 
     $this->postJson('/api/v1/teams', ['name' => 'Tier 2', 'department_id' => 999999])
         ->assertUnprocessable();
 });
 
-test('user.manage is required to update or delete a team', function () {
+test('org.manage is required to update or delete a team', function () {
     $user = User::factory()->create();
     $team = Team::factory()->create();
     Sanctum::actingAs($user, ['*']);
 
     $this->deleteJson("/api/v1/teams/{$team->id}")->assertForbidden();
 
-    Permission::findOrCreate('user.manage');
-    $user->givePermissionTo('user.manage');
+    Permission::findOrCreate('org.manage');
+    $user->givePermissionTo('org.manage');
 
     $this->putJson("/api/v1/teams/{$team->id}", ['name' => 'Renamed', 'department_id' => $team->department_id])
         ->assertOk()

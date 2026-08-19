@@ -20,14 +20,14 @@ test('listing departments requires authentication', function () {
     $this->getJson('/api/v1/departments')->assertUnauthorized();
 });
 
-test('user.manage is required to create a department', function () {
+test('org.manage is required to create a department', function () {
     $user = User::factory()->create();
     Sanctum::actingAs($user, ['*']);
 
     $this->postJson('/api/v1/departments', ['name' => 'Support'])->assertForbidden();
 
-    Permission::findOrCreate('user.manage');
-    $user->givePermissionTo('user.manage');
+    Permission::findOrCreate('org.manage');
+    $user->givePermissionTo('org.manage');
 
     $response = $this->postJson('/api/v1/departments', ['name' => 'Support']);
 
@@ -38,14 +38,14 @@ test('user.manage is required to create a department', function () {
 
 test('creating a department requires a name', function () {
     $user = User::factory()->create();
-    Permission::findOrCreate('user.manage');
-    $user->givePermissionTo('user.manage');
+    Permission::findOrCreate('org.manage');
+    $user->givePermissionTo('org.manage');
     Sanctum::actingAs($user, ['*']);
 
     $this->postJson('/api/v1/departments', [])->assertUnprocessable();
 });
 
-test('user.manage is required to update or delete a department', function () {
+test('org.manage is required to update or delete a department', function () {
     $user = User::factory()->create();
     Sanctum::actingAs($user, ['*']);
     $department = Department::factory()->create();
@@ -53,8 +53,8 @@ test('user.manage is required to update or delete a department', function () {
     $this->putJson("/api/v1/departments/{$department->id}", ['name' => 'Renamed'])->assertForbidden();
     $this->deleteJson("/api/v1/departments/{$department->id}")->assertForbidden();
 
-    Permission::findOrCreate('user.manage');
-    $user->givePermissionTo('user.manage');
+    Permission::findOrCreate('org.manage');
+    $user->givePermissionTo('org.manage');
 
     $this->putJson("/api/v1/departments/{$department->id}", ['name' => 'Renamed'])
         ->assertOk()

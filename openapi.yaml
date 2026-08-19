@@ -684,7 +684,7 @@ paths:
     post:
       tags: [Departments]
       summary: Create a department
-      description: Requires `user.manage`.
+      description: Requires `org.manage`.
       requestBody:
         required: true
         content:
@@ -730,7 +730,7 @@ paths:
     patch:
       tags: [Departments]
       summary: Update a department
-      description: Requires `user.manage`.
+      description: Requires `org.manage`.
       requestBody:
         required: true
         content:
@@ -756,7 +756,7 @@ paths:
     delete:
       tags: [Departments]
       summary: Delete a department
-      description: Requires `user.manage`. Restricted if teams still reference it.
+      description: Requires `org.manage`. Restricted if teams still reference it.
       responses:
         "204":
           description: Department deleted
@@ -777,7 +777,7 @@ paths:
     post:
       tags: [Teams]
       summary: Create a team
-      description: Requires `user.manage`.
+      description: Requires `org.manage`.
       requestBody:
         required: true
         content:
@@ -825,7 +825,7 @@ paths:
     patch:
       tags: [Teams]
       summary: Update a team
-      description: Requires `user.manage`.
+      description: Requires `org.manage`.
       requestBody:
         required: true
         content:
@@ -853,7 +853,7 @@ paths:
     delete:
       tags: [Teams]
       summary: Delete a team
-      description: Requires `user.manage`.
+      description: Requires `org.manage`.
       responses:
         "204":
           description: Team deleted
@@ -874,7 +874,7 @@ paths:
     post:
       tags: [Ticket Categories]
       summary: Create a ticket category
-      description: Requires `user.manage`.
+      description: Requires `org.manage`.
       requestBody:
         required: true
         content:
@@ -915,7 +915,7 @@ paths:
     patch:
       tags: [Ticket Categories]
       summary: Update a ticket category
-      description: Requires `user.manage`.
+      description: Requires `org.manage`.
       requestBody:
         required: true
         content:
@@ -936,7 +936,7 @@ paths:
     delete:
       tags: [Ticket Categories]
       summary: Delete a ticket category
-      description: Requires `user.manage`. Restricted if tickets or SLA policies still reference it.
+      description: Requires `org.manage`. Restricted if tickets or SLA policies still reference it.
       responses:
         "204":
           description: Category deleted
@@ -957,7 +957,7 @@ paths:
     post:
       tags: [Tags]
       summary: Create a tag
-      description: Requires `user.manage`.
+      description: Requires `org.manage`.
       requestBody:
         required: true
         content:
@@ -1003,7 +1003,7 @@ paths:
     patch:
       tags: [Tags]
       summary: Update a tag
-      description: Requires `user.manage`.
+      description: Requires `org.manage`.
       requestBody:
         required: true
         content:
@@ -1029,7 +1029,7 @@ paths:
     delete:
       tags: [Tags]
       summary: Delete a tag
-      description: Requires `user.manage`.
+      description: Requires `org.manage`.
       responses:
         "204":
           description: Tag deleted

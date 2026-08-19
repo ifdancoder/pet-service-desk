@@ -14,14 +14,14 @@ test('any authenticated user can list and view tags', function () {
     $this->getJson("/api/v1/tags/{$tag->id}")->assertOk()->assertJsonPath('data.id', $tag->id);
 });
 
-test('user.manage is required to create a tag', function () {
+test('org.manage is required to create a tag', function () {
     $user = User::factory()->create();
     Sanctum::actingAs($user, ['*']);
 
     $this->postJson('/api/v1/tags', ['name' => 'Urgent'])->assertForbidden();
 
-    Permission::findOrCreate('user.manage');
-    $user->givePermissionTo('user.manage');
+    Permission::findOrCreate('org.manage');
+    $user->givePermissionTo('org.manage');
 
     $this->postJson('/api/v1/tags', ['name' => 'Urgent'])
         ->assertCreated()
@@ -29,15 +29,15 @@ test('user.manage is required to create a tag', function () {
         ->assertJsonPath('data.slug', 'urgent');
 });
 
-test('user.manage is required to update or delete a tag', function () {
+test('org.manage is required to update or delete a tag', function () {
     $user = User::factory()->create();
     $tag = Tag::factory()->create();
     Sanctum::actingAs($user, ['*']);
 
     $this->deleteJson("/api/v1/tags/{$tag->id}")->assertForbidden();
 
-    Permission::findOrCreate('user.manage');
-    $user->givePermissionTo('user.manage');
+    Permission::findOrCreate('org.manage');
+    $user->givePermissionTo('org.manage');
 
     $this->putJson("/api/v1/tags/{$tag->id}", ['name' => 'Renamed'])
         ->assertOk()

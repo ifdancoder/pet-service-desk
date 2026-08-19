@@ -16,7 +16,7 @@ test('any authenticated user can list and view ticket categories', function () {
         ->assertJsonPath('data.id', $category->id);
 });
 
-test('user.manage is required to create a ticket category', function () {
+test('org.manage is required to create a ticket category', function () {
     $user = User::factory()->create();
     Sanctum::actingAs($user, ['*']);
 
@@ -24,8 +24,8 @@ test('user.manage is required to create a ticket category', function () {
 
     $this->postJson('/api/v1/ticket-categories', $payload)->assertForbidden();
 
-    Permission::findOrCreate('user.manage');
-    $user->givePermissionTo('user.manage');
+    Permission::findOrCreate('org.manage');
+    $user->givePermissionTo('org.manage');
 
     $this->postJson('/api/v1/ticket-categories', $payload)
         ->assertCreated()
@@ -36,8 +36,8 @@ test('user.manage is required to create a ticket category', function () {
 
 test('creating a ticket category requires a valid default_priority', function () {
     $user = User::factory()->create();
-    Permission::findOrCreate('user.manage');
-    $user->givePermissionTo('user.manage');
+    Permission::findOrCreate('org.manage');
+    $user->givePermissionTo('org.manage');
     Sanctum::actingAs($user, ['*']);
 
     $this->postJson('/api/v1/ticket-categories', [
@@ -47,15 +47,15 @@ test('creating a ticket category requires a valid default_priority', function ()
     ])->assertUnprocessable();
 });
 
-test('user.manage is required to update or delete a ticket category', function () {
+test('org.manage is required to update or delete a ticket category', function () {
     $user = User::factory()->create();
     $category = TicketCategory::factory()->create();
     Sanctum::actingAs($user, ['*']);
 
     $this->deleteJson("/api/v1/ticket-categories/{$category->id}")->assertForbidden();
 
-    Permission::findOrCreate('user.manage');
-    $user->givePermissionTo('user.manage');
+    Permission::findOrCreate('org.manage');
+    $user->givePermissionTo('org.manage');
 
     $this->putJson("/api/v1/ticket-categories/{$category->id}", [
         'name' => 'Renamed',

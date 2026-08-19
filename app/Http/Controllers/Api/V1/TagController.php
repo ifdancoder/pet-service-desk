@@ -42,7 +42,7 @@ class TagController extends Controller
 
     public function destroy(Request $request, Tag $tag, TagService $service): Response
     {
-        abort_unless($request->user()->can('user.manage'), 403);
+        abort_unless($request->user()->can('org.manage'), 403);
 
         $service->delete($tag);
 

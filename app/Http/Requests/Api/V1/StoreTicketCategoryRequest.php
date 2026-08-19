@@ -10,7 +10,7 @@ class StoreTicketCategoryRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('user.manage');
+        return $this->user()->can('org.manage');
     }
 
     public function rules(): array
