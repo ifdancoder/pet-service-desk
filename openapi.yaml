@@ -1,0 +1,1732 @@
+openapi: 3.0.3
+info:
+  title: SupportFlow API
+  description: >
+    REST API for SupportFlow, a helpdesk/ticketing system. Every endpoint
+    below lives under `/api/v1` and requires a Sanctum bearer token, except
+    issuing the token itself. Requests and responses are JSON.
+  version: "1.0.0"
+  license:
+    name: MIT
+
+servers:
+  - url: /api/v1
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Token issue and revocation
+  - name: Tickets
+    description: The core ticket resource and its status/assignment actions
+  - name: Comments
+    description: Ticket comments, public and internal
+  - name: Attachments
+    description: File attachments on tickets
+  - name: Watchers
+    description: Users following a ticket for updates
+  - name: Tags
+    description: Ticket tags and the ticket-to-tag sync endpoint
+  - name: Saved Filters
+    description: Per-user saved ticket list filters
+  - name: Departments
+  - name: Teams
+  - name: Ticket Categories
+  - name: SLA Policies
+
+paths:
+  /auth/tokens:
+    post:
+      tags: [Auth]
+      summary: Issue an access token
+      description: Exchanges an email and password for a Sanctum bearer token. Rate limited to 5 requests per minute.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        "201":
+          description: Token issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                        example: "1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          description: Too many attempts
+
+  /auth/tokens/current:
+    delete:
+      tags: [Auth]
+      summary: Revoke the current token
+      description: Deletes the Sanctum token used to authenticate this request.
+      responses:
+        "204":
+          description: Token revoked
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+  /tickets:
+    get:
+      tags: [Tickets]
+      summary: List tickets
+      description: >
+        Returns tickets visible to the authenticated user (own tickets, team
+        tickets, or all tickets, depending on their `ticket.view-*`
+        permission). Supports filtering and a saved filter shortcut.
+      parameters:
+        - $ref: "#/components/parameters/TicketStatusFilter"
+        - $ref: "#/components/parameters/TicketPriorityFilter"
+        - name: assignee_id
+          in: query
+          schema:
+            type: integer
+        - name: requester_id
+          in: query
+          schema:
+            type: integer
+        - name: team_id
+          in: query
+          schema:
+            type: integer
+        - name: department_id
+          in: query
+          schema:
+            type: integer
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+        - name: tag
+          in: query
+          description: A tag slug. Matches tickets carrying that tag.
+          schema:
+            type: string
+        - name: saved_filter_id
+          in: query
+          description: Applies a saved filter's criteria first, then any other query parameters on top of it.
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: A page of tickets (15 per page)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketCollection"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    post:
+      tags: [Tickets]
+      summary: Create a ticket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoreTicketRequest"
+      responses:
+        "201":
+          description: Ticket created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /tickets/search:
+    get:
+      tags: [Tickets]
+      summary: Search tickets
+      description: >
+        Full-text search over ticket subject and description, backed by
+        Elasticsearch. Requires any `ticket.view-*` permission. Results are
+        ranked by relevance and then filtered down to what the caller is
+        actually allowed to see, so a stale search index can never expose a
+        ticket the caller wouldn't otherwise be able to open. Not paginated;
+        capped at the 50 most relevant matches. Returns an empty list rather
+        than an error if Elasticsearch is unreachable or the index doesn't
+        exist yet.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+      responses:
+        "200":
+          description: Matching tickets, ordered by relevance (not paginated)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketSearchCollection"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /tickets/{ticket}:
+    parameters:
+      - $ref: "#/components/parameters/TicketId"
+    get:
+      tags: [Tickets]
+      summary: Get a ticket
+      responses:
+        "200":
+          description: The ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Tickets]
+      summary: Update a ticket
+      description: >
+        Updates subject, description, category, and department. `priority`
+        can only be included if the caller holds `ticket.change-priority`.
+        `team_id`/`assignee_id` can only be included, even set to `null`, if
+        the caller holds `ticket.assign`; otherwise those keys must be
+        entirely absent from the payload, not just omitted from what
+        changed. Only the requester of a still-open ticket can update it
+        through this endpoint (see the `assign`/`close`/`reopen` actions
+        below for the staff-side equivalents).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTicketRequest"
+      responses:
+        "200":
+          description: The updated ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Tickets]
+      summary: Delete a ticket
+      responses:
+        "204":
+          description: Ticket deleted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tickets/{ticket}/assign:
+    parameters:
+      - $ref: "#/components/parameters/TicketId"
+    post:
+      tags: [Tickets]
+      summary: Assign a ticket
+      description: Requires `ticket.assign`. The ticket must not be closed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignee_id]
+              properties:
+                assignee_id:
+                  type: integer
+      responses:
+        "200":
+          description: The reassigned ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /tickets/{ticket}/close:
+    parameters:
+      - $ref: "#/components/parameters/TicketId"
+    post:
+      tags: [Tickets]
+      summary: Close a ticket
+      description: Requires `ticket.close`. The ticket must not already be closed.
+      responses:
+        "200":
+          description: The closed ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /tickets/{ticket}/reopen:
+    parameters:
+      - $ref: "#/components/parameters/TicketId"
+    post:
+      tags: [Tickets]
+      summary: Reopen a ticket
+      description: Requires `ticket.reopen`. The ticket must currently be closed.
+      responses:
+        "200":
+          description: The reopened ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /tickets/{ticket}/priority:
+    parameters:
+      - $ref: "#/components/parameters/TicketId"
+    patch:
+      tags: [Tickets]
+      summary: Change a ticket's priority
+      description: Requires `ticket.change-priority`. Recalculates `sla_due_at` from the ticket's `created_at` against the new priority's SLA policy.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [priority]
+              properties:
+                priority:
+                  $ref: "#/components/schemas/TicketPriority"
+      responses:
+        "200":
+          description: The ticket with its new priority
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /tickets/{ticket}/comments:
+    parameters:
+      - $ref: "#/components/parameters/TicketId"
+    get:
+      tags: [Comments]
+      summary: List a ticket's comments
+      description: Internal comments are excluded for callers without `ticket.view-team` or `ticket.view-all`.
+      responses:
+        "200":
+          description: A page of comments (15 per page)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketCommentCollection"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Comments]
+      summary: Add a comment
+      description: '`is_internal: true` requires `ticket.view-team` or `ticket.view-all`; otherwise it is rejected outright, it does not silently fall back to a public comment.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body:
+                  type: string
+                is_internal:
+                  type: boolean
+                  default: false
+      responses:
+        "201":
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketCommentResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /tickets/{ticket}/comments/{comment}:
+    delete:
+      tags: [Comments]
+      summary: Delete a comment
+      description: Requires `comment.delete-own` (and authorship) or `comment.delete-any`.
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+        - name: comment
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Comment deleted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tickets/{ticket}/attachments:
+    parameters:
+      - $ref: "#/components/parameters/TicketId"
+    get:
+      tags: [Attachments]
+      summary: List a ticket's attachments
+      responses:
+        "200":
+          description: A page of attachments (15 per page)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketAttachmentCollection"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Attachments]
+      summary: Upload an attachment
+      description: >
+        Max 10 MB. Accepted types: jpg, jpeg, png, gif, pdf, doc, docx, xls,
+        xlsx, txt, csv. The file is stored to S3-compatible storage and a
+        background job stamps `scanned_at` once processed (currently a stub,
+        no real antivirus integration yet).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Attachment stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketAttachmentResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /tickets/{ticket}/attachments/{attachment}:
+    delete:
+      tags: [Attachments]
+      summary: Delete an attachment
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+        - name: attachment
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Attachment deleted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tickets/{ticket}/attachments/{attachment}/download:
+    get:
+      tags: [Attachments]
+      summary: Download an attachment
+      description: Redirects to a short-lived (5 minute) presigned URL on the storage backend. Not a JSON response.
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+        - name: attachment
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "302":
+          description: Redirect to a temporary signed download URL
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tickets/{ticket}/watchers:
+    parameters:
+      - $ref: "#/components/parameters/TicketId"
+    get:
+      tags: [Watchers]
+      summary: List a ticket's watchers
+      responses:
+        "200":
+          description: A page of watchers (15 per page)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketWatcherCollection"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Watchers]
+      summary: Add a watcher
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id:
+                  type: integer
+      responses:
+        "201":
+          description: Watcher added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketWatcherResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /tickets/{ticket}/watchers/{watcher}:
+    delete:
+      tags: [Watchers]
+      summary: Remove a watcher
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+        - name: watcher
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Watcher removed
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /tickets/{ticket}/tags:
+    put:
+      tags: [Tags]
+      summary: Replace a ticket's tags
+      description: Sets the ticket's full tag list from the given slugs. Sends an empty array to clear all tags. This replaces the set, it does not append to it.
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tags]
+              properties:
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  example: ["billing", "urgent"]
+      responses:
+        "200":
+          description: The ticket's tags after the sync
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Tag"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /saved-filters:
+    get:
+      tags: [Saved Filters]
+      summary: List your saved filters
+      responses:
+        "200":
+          description: A page of saved filters (15 per page), scoped to the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedFilterCollection"
+    post:
+      tags: [Saved Filters]
+      summary: Save a filter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/SavedFilterPayload"
+                - required: [name, filters]
+      responses:
+        "201":
+          description: Filter saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedFilterResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /saved-filters/{saved_filter}:
+    parameters:
+      - name: saved_filter
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [Saved Filters]
+      summary: Get a saved filter
+      description: Returns 404, not 403, if it belongs to someone else, so its existence isn't revealed.
+      responses:
+        "200":
+          description: The saved filter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedFilterResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Saved Filters]
+      summary: Update a saved filter
+      description: Every field is optional; only what's sent is changed. Same 404-not-403 rule for filters you don't own.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavedFilterPayload"
+      responses:
+        "200":
+          description: The updated saved filter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedFilterResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Saved Filters]
+      summary: Delete a saved filter
+      responses:
+        "204":
+          description: Filter deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /departments:
+    get:
+      tags: [Departments]
+      summary: List departments
+      responses:
+        "200":
+          description: A page of departments (15 per page)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepartmentCollection"
+    post:
+      tags: [Departments]
+      summary: Create a department
+      description: Requires `user.manage`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+      responses:
+        "201":
+          description: Department created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepartmentResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /departments/{department}:
+    parameters:
+      - name: department
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [Departments]
+      summary: Get a department
+      responses:
+        "200":
+          description: The department
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepartmentResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Departments]
+      summary: Update a department
+      description: Requires `user.manage`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+      responses:
+        "200":
+          description: The updated department
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepartmentResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Departments]
+      summary: Delete a department
+      description: Requires `user.manage`. Restricted if teams still reference it.
+      responses:
+        "204":
+          description: Department deleted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /teams:
+    get:
+      tags: [Teams]
+      summary: List teams
+      responses:
+        "200":
+          description: A page of teams (15 per page)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamCollection"
+    post:
+      tags: [Teams]
+      summary: Create a team
+      description: Requires `user.manage`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, department_id]
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                department_id:
+                  type: integer
+      responses:
+        "201":
+          description: Team created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /teams/{team}:
+    parameters:
+      - name: team
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [Teams]
+      summary: Get a team
+      responses:
+        "200":
+          description: The team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Teams]
+      summary: Update a team
+      description: Requires `user.manage`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, department_id]
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                department_id:
+                  type: integer
+      responses:
+        "200":
+          description: The updated team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Teams]
+      summary: Delete a team
+      description: Requires `user.manage`.
+      responses:
+        "204":
+          description: Team deleted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /ticket-categories:
+    get:
+      tags: [Ticket Categories]
+      summary: List ticket categories
+      responses:
+        "200":
+          description: A page of categories (15 per page)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketCategoryCollection"
+    post:
+      tags: [Ticket Categories]
+      summary: Create a ticket category
+      description: Requires `user.manage`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TicketCategoryPayload"
+      responses:
+        "201":
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketCategoryResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /ticket-categories/{ticket_category}:
+    parameters:
+      - name: ticket_category
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [Ticket Categories]
+      summary: Get a ticket category
+      responses:
+        "200":
+          description: The category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketCategoryResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Ticket Categories]
+      summary: Update a ticket category
+      description: Requires `user.manage`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TicketCategoryPayload"
+      responses:
+        "200":
+          description: The updated category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketCategoryResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Ticket Categories]
+      summary: Delete a ticket category
+      description: Requires `user.manage`. Restricted if tickets or SLA policies still reference it.
+      responses:
+        "204":
+          description: Category deleted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /tags:
+    get:
+      tags: [Tags]
+      summary: List tags
+      responses:
+        "200":
+          description: A page of tags (15 per page)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagCollection"
+    post:
+      tags: [Tags]
+      summary: Create a tag
+      description: Requires `user.manage`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+      responses:
+        "201":
+          description: Tag created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /tags/{tag}:
+    parameters:
+      - name: tag
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [Tags]
+      summary: Get a tag
+      responses:
+        "200":
+          description: The tag
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Tags]
+      summary: Update a tag
+      description: Requires `user.manage`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+      responses:
+        "200":
+          description: The updated tag
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Tags]
+      summary: Delete a tag
+      description: Requires `user.manage`.
+      responses:
+        "204":
+          description: Tag deleted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /sla-policies:
+    get:
+      tags: [SLA Policies]
+      summary: List SLA policies
+      description: Requires `sla.manage`.
+      responses:
+        "200":
+          description: A page of SLA policies (15 per page)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SlaPolicyCollection"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [SLA Policies]
+      summary: Create an SLA policy
+      description: Requires `sla.manage`. Leave `category_id` out to make the policy the default for its priority across all categories.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SlaPolicyPayload"
+      responses:
+        "201":
+          description: SLA policy created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SlaPolicyResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /sla-policies/{sla_policy}:
+    parameters:
+      - name: sla_policy
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [SLA Policies]
+      summary: Get an SLA policy
+      description: Requires `sla.manage`.
+      responses:
+        "200":
+          description: The SLA policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SlaPolicyResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [SLA Policies]
+      summary: Update an SLA policy
+      description: Requires `sla.manage`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SlaPolicyPayload"
+      responses:
+        "200":
+          description: The updated SLA policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SlaPolicyResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [SLA Policies]
+      summary: Delete an SLA policy
+      description: Requires `sla.manage`.
+      responses:
+        "204":
+          description: SLA policy deleted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: A Sanctum personal access token, obtained from `POST /auth/tokens`.
+
+  parameters:
+    TicketId:
+      name: ticket
+      in: path
+      required: true
+      schema:
+        type: integer
+    TicketStatusFilter:
+      name: status
+      in: query
+      schema:
+        $ref: "#/components/schemas/TicketStatus"
+    TicketPriorityFilter:
+      name: priority
+      in: query
+      schema:
+        $ref: "#/components/schemas/TicketPriority"
+
+  responses:
+    Unauthenticated:
+      description: Missing or invalid bearer token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorMessage"
+    Forbidden:
+      description: Authenticated, but not allowed to perform this action
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorMessage"
+    NotFound:
+      description: The resource does not exist, or exists but is deliberately hidden from this caller
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorMessage"
+    ValidationError:
+      description: One or more fields failed validation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              errors:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: string
+
+  schemas:
+    ErrorMessage:
+      type: object
+      properties:
+        message:
+          type: string
+
+    TicketStatus:
+      type: string
+      enum: [open, in_progress, on_hold, resolved, closed]
+
+    TicketPriority:
+      type: string
+      enum: [low, normal, high, critical]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+
+    Department:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Team:
+      type: object
+      properties:
+        id:
+          type: integer
+        department_id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TicketCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        active:
+          type: boolean
+        default_priority:
+          type: string
+          enum: [low, normal, high, critical]
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Tag:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SlaPolicy:
+      type: object
+      properties:
+        id:
+          type: integer
+        category_id:
+          type: integer
+          nullable: true
+          description: Null means this policy applies to every category at this priority.
+        priority:
+          $ref: "#/components/schemas/TicketPriority"
+        response_time_minutes:
+          type: integer
+        resolution_time_minutes:
+          type: integer
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Ticket:
+      type: object
+      properties:
+        id:
+          type: integer
+        subject:
+          type: string
+        description:
+          type: string
+        status:
+          $ref: "#/components/schemas/TicketStatus"
+        priority:
+          $ref: "#/components/schemas/TicketPriority"
+        requester_id:
+          type: integer
+        assignee_id:
+          type: integer
+          nullable: true
+        category_id:
+          type: integer
+        department_id:
+          type: integer
+        team_id:
+          type: integer
+          nullable: true
+        sla_due_at:
+          type: string
+          format: date-time
+          nullable: true
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+        closed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        requester:
+          allOf:
+            - $ref: "#/components/schemas/User"
+          description: Present when the caller loaded it. Requester/assignee/category/department/team/tags are all eager-loaded on `show`, `index`, and after any mutating action.
+        assignee:
+          $ref: "#/components/schemas/User"
+        category:
+          $ref: "#/components/schemas/TicketCategory"
+        department:
+          $ref: "#/components/schemas/Department"
+        team:
+          $ref: "#/components/schemas/Team"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tag"
+
+    TicketComment:
+      type: object
+      properties:
+        id:
+          type: integer
+        ticket_id:
+          type: integer
+        author_id:
+          type: integer
+        body:
+          type: string
+        is_internal:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TicketAttachment:
+      type: object
+      properties:
+        id:
+          type: integer
+        ticket_id:
+          type: integer
+        uploader_id:
+          type: integer
+        original_name:
+          type: string
+        mime_type:
+          type: string
+        size:
+          type: integer
+          description: Bytes.
+        scanned_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Set once the async scan job has processed the file.
+        created_at:
+          type: string
+          format: date-time
+
+    SavedFilter:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        filters:
+          type: object
+          description: The same shape as the `GET /tickets` query parameters, stored as JSON.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    StoreTicketRequest:
+      type: object
+      required: [subject, description, priority, category_id, department_id]
+      properties:
+        subject:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        priority:
+          $ref: "#/components/schemas/TicketPriority"
+        category_id:
+          type: integer
+          description: Must reference an active category.
+        department_id:
+          type: integer
+        team_id:
+          type: integer
+          nullable: true
+          description: Requires `ticket.assign`. Omit entirely if the caller doesn't hold it, sending it at all (even null) is rejected without the permission.
+        assignee_id:
+          type: integer
+          nullable: true
+          description: Requires `ticket.assign`. Same omit-entirely rule as `team_id`.
+
+    UpdateTicketRequest:
+      type: object
+      required: [subject, description, category_id, department_id]
+      properties:
+        subject:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        category_id:
+          type: integer
+          description: Must reference an active category.
+        department_id:
+          type: integer
+        priority:
+          allOf:
+            - $ref: "#/components/schemas/TicketPriority"
+          description: Requires `ticket.change-priority`. Omit entirely if the caller doesn't hold it.
+        team_id:
+          type: integer
+          nullable: true
+          description: Requires `ticket.assign`. Omit entirely if the caller doesn't hold it, sending it at all (even null) is rejected without the permission.
+        assignee_id:
+          type: integer
+          nullable: true
+          description: Requires `ticket.assign`. Same omit-entirely rule as `team_id`.
+
+    TicketCategoryPayload:
+      type: object
+      required: [name, active]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        active:
+          type: boolean
+        default_priority:
+          type: string
+          enum: [low, normal, high, critical]
+          nullable: true
+
+    SlaPolicyPayload:
+      type: object
+      required: [priority, response_time_minutes, resolution_time_minutes, active]
+      properties:
+        category_id:
+          type: integer
+          nullable: true
+        priority:
+          $ref: "#/components/schemas/TicketPriority"
+        response_time_minutes:
+          type: integer
+          minimum: 1
+        resolution_time_minutes:
+          type: integer
+          minimum: 1
+        active:
+          type: boolean
+
+    SavedFilterPayload:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        filters:
+          type: object
+          description: Any subset of the `GET /tickets` query parameters (status, priority, assignee_id, requester_id, team_id, department_id, category_id, tag).
+
+    TicketResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Ticket"
+
+    TicketCollection:
+      allOf:
+        - $ref: "#/components/schemas/PaginatedCollection"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/Ticket"
+
+    TicketSearchCollection:
+      type: object
+      description: Unlike TicketCollection, this is not paginated, there's no links/meta.
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Ticket"
+
+    TicketCommentResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/TicketComment"
+
+    TicketCommentCollection:
+      allOf:
+        - $ref: "#/components/schemas/PaginatedCollection"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/TicketComment"
+
+    TicketAttachmentResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/TicketAttachment"
+
+    TicketAttachmentCollection:
+      allOf:
+        - $ref: "#/components/schemas/PaginatedCollection"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/TicketAttachment"
+
+    TicketWatcherResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/User"
+
+    TicketWatcherCollection:
+      allOf:
+        - $ref: "#/components/schemas/PaginatedCollection"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/User"
+
+    SavedFilterResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SavedFilter"
+
+    SavedFilterCollection:
+      allOf:
+        - $ref: "#/components/schemas/PaginatedCollection"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/SavedFilter"
+
+    DepartmentResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Department"
+
+    DepartmentCollection:
+      allOf:
+        - $ref: "#/components/schemas/PaginatedCollection"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/Department"
+
+    TeamResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Team"
+
+    TeamCollection:
+      allOf:
+        - $ref: "#/components/schemas/PaginatedCollection"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/Team"
+
+    TicketCategoryResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/TicketCategory"
+
+    TicketCategoryCollection:
+      allOf:
+        - $ref: "#/components/schemas/PaginatedCollection"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/TicketCategory"
+
+    TagResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Tag"
+
+    TagCollection:
+      allOf:
+        - $ref: "#/components/schemas/PaginatedCollection"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/Tag"
+
+    SlaPolicyResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SlaPolicy"
+
+    SlaPolicyCollection:
+      allOf:
+        - $ref: "#/components/schemas/PaginatedCollection"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/SlaPolicy"
+
+    PaginatedCollection:
+      type: object
+      description: Laravel's standard paginated resource wrapper. 15 items per page.
+      properties:
+        links:
+          type: object
+          properties:
+            first:
+              type: string
+              nullable: true
+            last:
+              type: string
+              nullable: true
+            prev:
+              type: string
+              nullable: true
+            next:
+              type: string
+              nullable: true
+        meta:
+          type: object
+          properties:
+            current_page:
+              type: integer
+            from:
+              type: integer
+              nullable: true
+            last_page:
+              type: integer
+            path:
+              type: string
+            per_page:
+              type: integer
+            to:
+              type: integer
+              nullable: true
+            total:
+              type: integer
