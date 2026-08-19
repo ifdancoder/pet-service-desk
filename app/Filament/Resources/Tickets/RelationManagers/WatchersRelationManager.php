@@ -20,9 +20,9 @@ class WatchersRelationManager extends RelationManager
     /**
      * Authorize against the OWNER ticket, not the related User model.
      *
-     * The parent implementation checks the related model's `viewAny` policy —
-     * here `UserPolicy::viewAny()`, gated on `user.manage` (administrator-only),
-     * which would hide the Watchers tab from every other staff role.
+     * The parent implementation checks the related model's `viewAny` policy
+     * (here `UserPolicy::viewAny()`, gated on `user.manage`, administrator
+     * only), which would hide the Watchers tab from every other staff role.
      */
     public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
     {

@@ -63,8 +63,8 @@ test('the role/permission seeder creates all roles and permissions with the righ
 
 test('seeded roles and permissions are pinned to the sanctum guard even when the default guard has been switched', function () {
     // actingAs($user, 'web') calls AuthManager::shouldUse('web'), which mutates
-    // config('auth.defaults.guard') for the rest of the request — exactly the
-    // drift that once produced a stray guard_name='web' permission row.
+    // config('auth.defaults.guard') for the rest of the request. This is exactly
+    // the drift that once produced a stray guard_name='web' permission row.
     $this->actingAs(User::factory()->create(), 'web');
     expect(config('auth.defaults.guard'))->toBe('web');
 

@@ -50,7 +50,7 @@ test('creates a ticket via TicketService', function () {
 
     $requester = User::factory()->create();
 
-    // Only TicketService::create() dispatches TicketCreated — Filament's own
+    // Only TicketService::create() dispatches TicketCreated. Filament's own
     // default record creation would not, so this proves the service ran.
     Event::fake();
 
@@ -91,7 +91,7 @@ test('a user with ticket.manage can edit a ticket via TicketService, recalculati
 
     // Only a policy for the NEW category, so a recalculated sla_due_at can only
     // come from TicketService::update() re-running CalendarSlaCalculator after
-    // the category change — Filament's default Eloquent save would leave it null.
+    // the category change. Filament's default Eloquent save would leave it null.
     SlaPolicy::factory()->create([
         'category_id' => $newCategory->id,
         'priority' => TicketPriority::High,
@@ -153,7 +153,7 @@ test('a user without ticket.assign cannot change the team and their edit leaves 
     Livewire::test(EditTicket::class, ['record' => $ticket->getRouteKey()])
         ->assertFormFieldDisabled('team_id')
         // Even with tampered state, team_id is not dehydrated into $data and
-        // EditTicket falls back to the record's current team — never null.
+        // EditTicket falls back to the record's current team, never null.
         ->fillForm(['team_id' => $otherTeam->id, 'subject' => 'Edited subject'])
         ->call('save')
         ->assertHasNoFormErrors();

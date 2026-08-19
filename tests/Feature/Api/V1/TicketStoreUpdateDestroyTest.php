@@ -17,8 +17,8 @@ test('creating a ticket requires the ticket.create permission', function () {
     $department = Department::factory()->create();
 
     // team_id/assignee_id deliberately omitted: this user only ever holds
-    // ticket.create (not ticket.assign), and — per the ProhibitedWithoutPermission
-    // rule — those keys aren't allowed in the payload at all without it, even
+    // ticket.create (not ticket.assign), and per the ProhibitedWithoutPermission
+    // rule, those keys aren't allowed in the payload at all without it, even
     // set explicitly to null. See the dedicated C2 tests below.
     $payload = [
         'subject' => 'Printer on fire',
@@ -75,7 +75,7 @@ test("update is only allowed for the open ticket's own requester with the permis
 
     // priority/team_id/assignee_id deliberately omitted: this user only holds
     // ticket.update-own (a customer-shaped grant), not ticket.change-priority
-    // or ticket.assign, so those fields must stay out of the payload — see
+    // or ticket.assign, so those fields must stay out of the payload. See
     // TicketStoreUpdateDestroyTest's C2 coverage below for the permission and
     // field-preservation behavior itself.
     $payload = [

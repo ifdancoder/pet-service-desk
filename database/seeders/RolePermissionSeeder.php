@@ -102,8 +102,8 @@ class RolePermissionSeeder extends Seeder
     {
         // The guard is pinned explicitly rather than left to
         // config('auth.defaults.guard'), which AuthManager::setDefaultDriver()
-        // can mutate at runtime — seeded rows must always match User's own
-        // hard-pinned $guard_name or nothing resolves.
+        // can mutate at runtime. Seeded rows must always match User's own
+        // hard-pinned $guard_name, otherwise nothing resolves.
         foreach (self::PERMISSIONS as $permission) {
             Permission::findOrCreate($permission, User::GUARD_NAME);
         }

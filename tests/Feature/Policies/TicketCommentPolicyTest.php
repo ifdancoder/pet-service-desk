@@ -14,18 +14,18 @@ test('create requires the comment.create permission and the ability to view the 
     Permission::findOrCreate('comment.create');
     $user->givePermissionTo('comment.create');
 
-    // Has comment.create but no view-* permission at all — still denied.
+    // Has comment.create but no view-* permission at all, still denied.
     expect($user->can('create', [TicketComment::class, $ticket]))->toBeFalse();
 
     Permission::findOrCreate('ticket.view-own');
     $user->givePermissionTo('ticket.view-own');
 
-    // Still denied — comment.create + view-own permission, but this ticket isn't theirs.
+    // Still denied: comment.create + view-own permission, but this ticket isn't theirs.
     expect($user->can('create', [TicketComment::class, $ticket]))->toBeFalse();
 
     $ownTicket = Ticket::factory()->create(['requester_id' => $user->id]);
 
-    // Now allowed — comment.create + can actually view this specific ticket (it's their own).
+    // Now allowed: comment.create + can actually view this specific ticket (it's their own).
     expect($user->can('create', [TicketComment::class, $ownTicket]))->toBeTrue();
 });
 

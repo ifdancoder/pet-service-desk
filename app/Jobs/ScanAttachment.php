@@ -19,9 +19,9 @@ class ScanAttachment implements ShouldQueue
 
     public function handle(): void
     {
-        // No real antivirus integration in this phase — this stub marks
-        // every attachment safe. A later phase can replace this handle()
-        // body with a real scanning service without touching any caller.
+        // No real antivirus integration in this phase. This stub just marks
+        // every attachment safe. A later phase can swap in a real scanning
+        // service by replacing this handle() body, no caller has to change.
         $this->attachment->update(['scanned_at' => now()]);
     }
 }

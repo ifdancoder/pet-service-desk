@@ -24,8 +24,8 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        // WithoutModelEvents (above) wraps this entire run() — including the
-        // nested seeder call below — in Model::withoutEvents(). spatie/laravel-permission
+        // WithoutModelEvents (above) wraps this whole run(), including the
+        // nested seeder call below, in Model::withoutEvents(). spatie/laravel-permission
         // relies on the Eloquent `saved`/`deleted` events to invalidate its permission
         // cache, so with events suppressed, roles created here can never see the
         // permissions RolePermissionSeeder just created. Restore real events for

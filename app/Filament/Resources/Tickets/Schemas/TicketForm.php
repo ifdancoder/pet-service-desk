@@ -36,9 +36,9 @@ class TicketForm
                 // API side (UpdateTicketRequest's ProhibitedWithoutPermission).
                 // disabled() already implies saved(false) (see the schemas
                 // package's CanBeDisabled trait), which HasState::isDehydrated()
-                // falls back to — but Select::relationship() installs its own
+                // falls back to. But Select::relationship() installs its own
                 // dehydrated() closure, so the gate is restated explicitly here
-                // rather than left resting on call order. Either way the key is
+                // instead of resting on call order. Either way the key ends up
                 // absent from $data for non-holders, which EditTicket handles by
                 // preserving the record's current team.
                 Select::make('team_id')

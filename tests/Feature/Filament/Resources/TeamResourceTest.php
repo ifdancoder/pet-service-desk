@@ -18,7 +18,7 @@ beforeEach(function () {
     // Gate::before(administrator => true) short-circuits every Policy check,
     // so an administrator acting user would never exercise TeamPolicy at all.
     // support_manager holds 'org.manage' legitimately, and notably NOT
-    // 'user.manage' — which the members relation manager must not require.
+    // 'user.manage', which the members relation manager must not require.
     $this->staff = User::factory()->create();
     $this->staff->assignRole(UserRole::SupportManager->value);
     $this->actingAs($this->staff, 'web');

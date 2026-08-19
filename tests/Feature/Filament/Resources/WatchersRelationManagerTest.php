@@ -48,7 +48,7 @@ test('detaches a watcher from a ticket', function () {
 test('a support_manager without user.manage can still see and use the watchers tab', function () {
     // Regression: canViewForRecord() used to fall through to the parent
     // implementation, which authorizes the RELATED model (UserPolicy::viewAny,
-    // gated on 'user.manage' — administrator-only), hiding the tab from every
+    // gated on 'user.manage', administrator only), hiding the tab from every
     // other staff role. It must authorize the OWNER ticket instead.
     $manager = User::factory()->create();
     $manager->assignRole(UserRole::SupportManager->value);

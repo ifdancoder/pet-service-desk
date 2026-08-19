@@ -31,8 +31,8 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // Laravel's classic default "api" limiter (60 requests/minute, keyed by
-        // authenticated user ID or IP) — the Laravel 11+ slim skeleton no longer
-        // registers this automatically, so it must be defined explicitly for
+        // authenticated user ID or IP). The Laravel 11+ slim skeleton no longer
+        // registers this automatically, so it has to be defined explicitly for
         // `$middleware->throttleApi()` (bootstrap/app.php) to have a limiter to use.
         RateLimiter::for('api', function ($request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());

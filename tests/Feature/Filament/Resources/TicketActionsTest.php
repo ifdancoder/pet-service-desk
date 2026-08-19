@@ -19,12 +19,11 @@ use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 
 beforeEach(function () {
-    // Deviation from the brief: TicketResource::canEdit() (Task 8) requires the
-    // 'ticket.manage' permission to enter the Edit page at all — without it, mounting
-    // EditTicket 403s and any subsequent ->callAction() fails with a cryptic
-    // "Attempt to read property ... on null" error instead of a clear assertion
-    // failure. Added 'ticket.manage' alongside the brief's listed permissions so the
-    // manager can actually reach the page these actions are registered on.
+    // TicketResource::canEdit() requires 'ticket.manage' just to enter the Edit
+    // page. Without it, mounting EditTicket 403s and any subsequent
+    // ->callAction() fails with a cryptic "Attempt to read property ... on
+    // null" error instead of a clear assertion failure, so it's granted here
+    // alongside the per-action permissions each test actually exercises.
     foreach (['ticket.view-all', 'ticket.assign', 'ticket.close', 'ticket.reopen', 'ticket.change-priority', 'ticket.manage'] as $permission) {
         Permission::findOrCreate($permission);
     }
@@ -76,7 +75,7 @@ test('reopen action calls TicketService and dispatches TicketReopened', function
 
 test('a team_lead can list team tickets and use the assign action', function () {
     // Regression: team_lead held no ticket.view-* permission, so TicketPolicy::viewAny()
-    // failed and the whole Tickets resource 403'd — making their ticket.assign
+    // failed and the whole Tickets resource 403'd, making their ticket.assign
     // grant unreachable in the panel.
     Artisan::call('db:seed', ['--class' => RolePermissionSeeder::class]);
     Event::fake();

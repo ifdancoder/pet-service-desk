@@ -22,7 +22,7 @@ test('shows breached and soon-to-be-breached tickets visible to the acting user'
     ]);
     SlaViolation::factory()->for($breached)->create();
 
-    // Has a violation but a far-future due date — only the violation branch of the
+    // Has a violation but a far-future due date. Only the violation branch of the
     // query's OR should include this, proving that branch is load-bearing and not
     // redundant with the deadline check.
     $breachedFarFuture = Ticket::factory()->create([
@@ -39,11 +39,11 @@ test('shows breached and soon-to-be-breached tickets visible to the acting user'
     $safe = Ticket::factory()->create(['requester_id' => $user->id, 'sla_due_at' => Carbon::now()->addDay()]);
     $noDeadline = Ticket::factory()->create(['requester_id' => $user->id, 'sla_due_at' => null]);
 
-    // Breached, but someone else's ticket — visibleTo() must exclude it.
+    // Breached, but someone else's ticket. visibleTo() must exclude it.
     $someoneElses = Ticket::factory()->create(['sla_due_at' => Carbon::now()->subHour()]);
     SlaViolation::factory()->for($someoneElses)->create();
 
-    // Breached and closed — DetectSlaBreaches scopes to ->open(), so a closed
+    // Breached and closed. DetectSlaBreaches scopes to ->open(), so a closed
     // ticket must not linger in the tracker either.
     $closedBreached = Ticket::factory()->closed()->create([
         'requester_id' => $user->id,

@@ -50,8 +50,7 @@ return [
     |
     */
 
-    // 14 days (in minutes) — tokens should not be permanent; see the API
-    // layer's Wave 1 security fix pass.
+    // 14 days (in minutes). Tokens should not be permanent.
     'expiration' => 60 * 24 * 14,
 
     /*

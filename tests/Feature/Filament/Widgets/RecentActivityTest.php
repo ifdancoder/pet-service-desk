@@ -14,7 +14,7 @@ test('shows recently updated tickets visible to the acting user, most recent fir
 
     $older = Ticket::factory()->create(['requester_id' => $user->id, 'updated_at' => now()->subDay()]);
     $newer = Ticket::factory()->create(['requester_id' => $user->id, 'updated_at' => now()]);
-    // Someone else's ticket, updated most recently of all three — with only
+    // Someone else's ticket, updated most recently of all three. With only
     // ticket.view-own (not view-all), this must never appear, proving visibleTo()
     // scoping actually filters rather than the test passing merely because
     // the acting user happens to hold view-all (which would make scoping a no-op).

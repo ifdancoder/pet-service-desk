@@ -8,24 +8,23 @@ use Illuminate\Contracts\Validation\DataAwareRule;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 /**
- * Fails when the attribute is present in the request — including an
- * explicit `null` — and the given user lacks the given permission.
+ * Fails when the attribute is present in the request, including an
+ * explicit `null`, and the given user lacks the given permission.
  *
- * `Rule::prohibitedIf()`/the built-in `prohibited` rule can't be used for
- * this: they're implemented as `! validateRequired()`, which treats an
+ * `Rule::prohibitedIf()` and the built-in `prohibited` rule can't be used
+ * for this. They're implemented as `! validateRequired()`, which treats an
  * explicit `null` the same as "attribute absent" and so lets a null value
  * straight through. A plain closure rule has the same problem from a
  * different angle: once an attribute also carries `nullable` and its
  * submitted value is null, Laravel's Validator skips every *non-implicit*
  * rule for that attribute entirely (see
- * Validator::isNotNullIfMarkedAsNullable()) — so a closure rule simply
+ * Validator::isNotNullIfMarkedAsNullable()), so a closure rule simply
  * never runs for `{"assignee_id": null}`.
  *
  * Implementing ValidationRule with `$implicit = true` is what makes
- * Laravel run this rule regardless of the nullable-null skip, and reading
- * presence off the full validated data array (via DataAwareRule) — rather
- * than off $value — is what lets it tell "explicit null" apart from
- * "omitted".
+ * Laravel run this rule regardless of the nullable-null skip. Reading
+ * presence off the full validated data array (via DataAwareRule) instead
+ * of off $value is what lets it tell "explicit null" apart from "omitted".
  */
 class ProhibitedWithoutPermission implements DataAwareRule, ValidationRule
 {

@@ -24,9 +24,9 @@ test('shows counts scoped to what the acting user can see', function () {
     Ticket::factory()->create(['requester_id' => $user->id, 'status' => TicketStatus::Open, 'priority' => TicketPriority::High]);
     Ticket::factory()->create(['requester_id' => $user->id, 'status' => TicketStatus::Closed]);
     // Someone else's ticket shares the SAME status and priority as the user's own
-    // visible ticket — if visibleTo() scoping were broken (unscoped), the Open/High
+    // visible ticket. If visibleTo() scoping were broken (unscoped), the Open/High
     // counts would both show 2 instead of 1, so this genuinely proves scoping works
-    // rather than coincidentally passing regardless of it.
+    // instead of coincidentally passing regardless of it.
     Ticket::factory()->create(['status' => TicketStatus::Open, 'priority' => TicketPriority::High]);
 
     $this->actingAs($user, 'web');
