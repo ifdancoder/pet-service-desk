@@ -4,8 +4,12 @@ namespace App\Providers;
 
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Services\Search\ElasticsearchTicketSearchClient;
+use App\Services\Search\TicketSearchClient;
 use App\Services\Sla\CalendarSlaCalculator;
 use App\Services\Sla\SlaCalculator;
+use Elastic\Elasticsearch\Client as ElasticsearchClient;
+use Elastic\Elasticsearch\ClientBuilder as ElasticsearchClientBuilder;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
@@ -19,6 +23,11 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(SlaCalculator::class, CalendarSlaCalculator::class);
+
+        $this->app->singleton(ElasticsearchClient::class, fn () => ElasticsearchClientBuilder::create()
+            ->setHosts(config('elasticsearch.hosts'))
+            ->build());
+        $this->app->bind(TicketSearchClient::class, ElasticsearchTicketSearchClient::class);
     }
 
     /**

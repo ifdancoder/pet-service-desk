@@ -17,6 +17,7 @@ use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Artisan;
 
 class DatabaseSeeder extends Seeder
 {
@@ -149,5 +150,11 @@ class DatabaseSeeder extends Seeder
                 $ticket->watchers()->attach($agents->random(random_int(0, 3))->pluck('id'));
                 $ticket->tags()->attach($tags->random(random_int(0, 3))->pluck('id'));
             });
+
+        // WithoutModelEvents (above) suppresses the observer that would
+        // normally index each ticket as it's created, so the seeded
+        // tickets need indexing explicitly. Harmless to call even if
+        // Elasticsearch isn't running: the job itself swallows that.
+        Artisan::call('tickets:reindex-search');
     }
 }

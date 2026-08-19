@@ -32,6 +32,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('tickets/{ticket}/close', [TicketController::class, 'close'])->name('tickets.close');
         Route::post('tickets/{ticket}/reopen', [TicketController::class, 'reopen'])->name('tickets.reopen');
         Route::patch('tickets/{ticket}/priority', [TicketController::class, 'changePriority'])->name('tickets.priority');
+        Route::get('tickets/search', [TicketController::class, 'search'])->name('tickets.search');
         Route::apiResource('tickets', TicketController::class);
         Route::apiResource('tickets.comments', TicketCommentController::class)->only(['index', 'store', 'destroy']);
         Route::apiResource('tickets.watchers', TicketWatcherController::class)->only(['index', 'store', 'destroy']);

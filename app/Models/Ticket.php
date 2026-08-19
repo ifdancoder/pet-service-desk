@@ -4,8 +4,10 @@ namespace App\Models;
 
 use App\Enums\TicketPriority;
 use App\Enums\TicketStatus;
+use App\Observers\TicketSearchObserver;
 use Database\Factories\TicketFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -29,6 +31,7 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
     'resolved_at',
     'closed_at',
 ])]
+#[ObservedBy(TicketSearchObserver::class)]
 class Ticket extends Model
 {
     /** @use HasFactory<TicketFactory> */

@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\AssignTicketRequest;
 use App\Http\Requests\Api\V1\ChangeTicketPriorityRequest;
 use App\Http\Requests\Api\V1\IndexTicketRequest;
+use App\Http\Requests\Api\V1\SearchTicketsRequest;
 use App\Http\Requests\Api\V1\StoreTicketRequest;
 use App\Http\Requests\Api\V1\UpdateTicketRequest;
 use App\Http\Resources\Api\V1\TicketCollection;
@@ -16,6 +17,7 @@ use App\Http\Resources\Api\V1\TicketResource;
 use App\Models\SavedFilter;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\Search\TicketSearchService;
 use App\Services\TicketService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
@@ -104,5 +106,12 @@ class TicketController extends Controller
         $ticket = $service->changePriority($ticket, $priority);
 
         return new TicketResource($ticket);
+    }
+
+    public function search(SearchTicketsRequest $request, TicketSearchService $search): TicketCollection
+    {
+        $tickets = $search->search($request->validated('q'), $request->user());
+
+        return new TicketCollection($tickets);
     }
 }
